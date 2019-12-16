@@ -1,4 +1,5 @@
 import socket
+import threading
 from key_value_operations import KeyValueStore
 
 def run_server():
@@ -12,18 +13,22 @@ def run_server():
     sock.listen(1)
 
     while True:
-        print('waiting for a connection')
         connection, client_address = sock.accept()
+        print("connection from " + str(client_address))
+
+        threading.Thread(target=handle_client, args=(connection, kvs)).start()
+
+def handle_client(connection, kvs):
+    while True:
+        print('waiting for a connection')
 
         try:
-            print(f"connection from {client_address}")
-
             while True:
                 operation = connection.recv(1024)
 
                 if operation:
                     string_operation = operation.decode("utf-8")
-                    print(f"received {string_operation}")
+                    print("received " + string_operation)
 
                     f = open("commands.txt", "a")
                     f.write(string_operation + '\n')
@@ -33,11 +38,12 @@ def run_server():
                     connection.sendall(response.encode('utf-8'))
 
                 else:
-                    print(f"no more data from {client_address}")
+                    print("no more data")
                     break
 
         finally:
             connection.close()
+
 
 def catch_up(key_value_store):
     f = open("commands.txt", "r")
