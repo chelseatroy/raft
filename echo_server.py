@@ -13,6 +13,31 @@ def set(key, value):
 def delete(key):
     del data[key]
 
+def execute(operation):
+    string_operation = operation.decode("utf-8")
+    print(f"received {string_operation}")
+
+    command, key, value = 0, 1, 2
+    operands = string_operation.split(" ")
+
+    response = "Sorry, I don't understand that command."
+
+    if operands[command] == "get":
+        response = get(operands[key])
+    elif operands[command] == "set":
+        set(operands[key], operands[value])
+        response = f"key {operands[key]} set to {operands[value]}"
+    elif operands[command] == "delete":
+        delete(operands[key])
+        response = f"key {key} deleted"
+    elif operands[command] == "show":
+        response = str(data)
+    else:
+        pass
+
+    return response
+
+
 def run_server():
     server_address = ('localhost', 10000)
     print(f"starting up on {server_address[0]} port {server_address[1]}")
@@ -30,28 +55,9 @@ def run_server():
             # Receive the data in small chunks and retransmit it
             while True:
                 operation = connection.recv(16)
-                string_operation = operation.decode("utf-8")
 
-                print(f"received {string_operation} of type {type(string_operation)}")
                 if operation:
-                    command, key, value = 0,1,2
-                    operands = string_operation.split(" ")
-
-                    response = "Sorry, I don't understand that command."
-
-                    if operands[command] == "get":
-                        response = get(operands[key])
-                    elif operands[command] == "set":
-                        set(operands[key], operands[value])
-                        response = f"key {operands[key]} set to {operands[value]}"
-                    elif operands[command] == "delete":
-                        delete(operands[key])
-                        response = f"key {key} deleted"
-                    elif operands[command] == "show":
-                        response = str(data)
-                    else:
-                        pass
-
+                    response = execute(operation)
                     connection.sendall(response.encode('utf-8'))
 
                 else:
