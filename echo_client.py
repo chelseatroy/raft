@@ -1,4 +1,5 @@
 import socket
+from message_pass import *
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -11,9 +12,9 @@ while True:
         message = input("Type your message:\n")
         print(f"sending {message}")
 
-        sock.sendall(message.encode('utf-8'))
+        send_message(sock, message.encode('utf-8'))
 
-        data = sock.recv(1024)
+        data = receive_message(sock)
         print(f"received {data}")
     except:
         print(f"closing socket")

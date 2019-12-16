@@ -1,12 +1,13 @@
 import socket
 import threading
 from key_value_operations import KeyValueStore
+from message_pass import *
 
 def run_server():
     kvs = KeyValueStore()
     catch_up(kvs)
     server_address = ('localhost', 10000)
-    print(f"starting up on {server_address[0]} port {server_address[1]}")
+    print("starting up on " + str(server_address[0]) + "port "  +str(server_address[1]))
 
     sock = socket.socket()
     sock.bind(server_address)
@@ -24,7 +25,7 @@ def handle_client(connection, kvs):
 
         try:
             while True:
-                operation = connection.recv(1024)
+                operation = receive_message(connection)
 
                 if operation:
                     string_operation = operation.decode("utf-8")
@@ -35,7 +36,7 @@ def handle_client(connection, kvs):
                     f.close()
 
                     response = kvs.execute(string_operation)
-                    connection.sendall(response.encode('utf-8'))
+                    send_message(connection, response.encode('utf-8'))
 
                 else:
                     print("no more data")
