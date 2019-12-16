@@ -13,13 +13,8 @@ while True:
 
         sock.sendall(message.encode('utf-8'))
 
-        amount_received = 0
-        amount_expected = len(message)
-
-        while amount_received < amount_expected:
-            data = sock.recv(1024)
-            amount_received += len(data)
-            print(f"received {data}")
+        data = sock.recv(1024)
+        print(f"received {data}")
     except:
         print(f"closing socket")
         sock.close()
