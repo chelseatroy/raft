@@ -11,6 +11,10 @@ class Server:
         self.kvs = KeyValueStore()
         self.catch_up(self.kvs)
 
+    def destination_addresses(self):
+        other_servers = {k: v for (k, v) in server_nodes().items() if k != self.name}
+        return list(other_servers.values())
+
     def start(self):
         server_address = ('localhost', self.port)
 
@@ -19,7 +23,7 @@ class Server:
         f.close()
 
         print("starting up on " + str(server_address[0]) + " port "  + str(server_address[1]))
-        print(str(server_nodes()))
+        print(self.destination_addresses())
 
         sock = socket()
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
