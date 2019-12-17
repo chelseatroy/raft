@@ -5,6 +5,7 @@ class KeyValueStore:
 
     def __init__(self):
         self.data = {}
+        self.log = []
 
     def get(self, key):
         return self.data.get(key, '')
@@ -16,6 +17,8 @@ class KeyValueStore:
         del self.data[key]
 
     def execute(self, string_operation):
+        self.log.append(string_operation)
+
         command, key = 0, 1
         operands = string_operation.split(" ")
 

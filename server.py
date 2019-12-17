@@ -48,10 +48,6 @@ class Server:
                         string_operation = operation.decode("utf-8")
                         print("received " + string_operation)
 
-                        f = open("commands.txt", "a")
-                        f.write(string_operation + '\n')
-                        f.close()
-
                         response = kvs.execute(string_operation)
                         send_message(connection, response.encode('utf-8'))
 
@@ -62,13 +58,13 @@ class Server:
             finally:
                 connection.close()
 
-
-    def catch_up(self, key_value_store):
-        f = open("commands.txt", "r")
-        log = f.read()
-        f.close()
-
-        for command in log.split('\n'):
-            key_value_store.execute(command)
+    #
+    # def catch_up(self, key_value_store):
+    #     f = open("commands.txt", "r")
+    #     log = f.read()
+    #     f.close()
+    #
+    #     for command in log.split('\n'):
+    #         key_value_store.execute(command)
 
 
