@@ -13,9 +13,13 @@ class Server:
 
     def start(self):
         server_address = ('localhost', self.port)
-        print("starting up on " + str(server_address[0]) + "port "  +str(server_address[1]))
-        server_nodes[self.name] = server_address
-        print(str(server_nodes))
+
+        f = open("server_registry.txt", "a")
+        f.write(self.name + " localhost " + str(self.port) + '\n')
+        f.close()
+
+        print("starting up on " + str(server_address[0]) + " port "  + str(server_address[1]))
+        print(str(server_nodes()))
 
         sock = socket()
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)

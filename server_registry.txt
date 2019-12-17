@@ -1,0 +1,6 @@
+myserver localhost 10000
+myserver localhost 10000
+myserver localhost 10000
+myserver localhost 10000
+myserver localhost 10000
+yourserver localhost 10001
