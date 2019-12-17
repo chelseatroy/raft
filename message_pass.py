@@ -10,18 +10,18 @@ def send_message(sock, msg):
 # send_message(sock, b'Hello World')   ->>>  b"<size>Hello World"
 
 def receive_message(sock):
-    sz = recv_size(sock)           # get the message size
-    msg = recv_exactly(sock, sz)   # Receive exactly this many bytes
+    size = receive_size(sock)           # get the message size
+    msg = receive_exactly(sock, size)   # Receive exactly this many bytes
     return msg
 
-def send_size(sock, sz):
-    sock.sendall(sz.to_bytes(8, "big"))
+def send_size(sock, size):
+    sock.sendall(size.to_bytes(8, "big"))
 
-def recv_size(sock):
-    msg = recv_exactly(sock, 8)
-    return int.from_bytes(msg, "big")
+def receive_size(sock):
+    message = receive_exactly(sock, 8)
+    return int.from_bytes(message, "big")
 
-def recv_exactly(sock, nbytes):
+def receive_exactly(sock, nbytes):
     '''
     Receive exactly nbytes of data on a socket
     '''

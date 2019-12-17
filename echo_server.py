@@ -1,6 +1,6 @@
 import socket
 import threading
-from key_value_operations import KeyValueStore
+from key_value_store import KeyValueStore
 from message_pass import *
 
 def run_server():
