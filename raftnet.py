@@ -1,5 +1,5 @@
 import queue
-import config
+from config import server_nodes
 import message_pass
 import threading
 from socket import *
