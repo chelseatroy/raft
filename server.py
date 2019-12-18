@@ -14,6 +14,7 @@ class Server:
 
     def destination_addresses(self):
         other_servers = {k: v for (k, v) in server_nodes().items() if k != self.name}
+        print(str(list(other_servers.values())))
         return list(other_servers.values())
 
     def address_of(self, server_name):
@@ -24,11 +25,12 @@ class Server:
 
         self.client_socket = socket(AF_INET, SOCK_STREAM)
         self.client_socket.connect(to_server_address)
+        encoded_message = message.encode('utf-8')
 
         try:
-            print(f"sending {message}")
-            send_message(self.client_socket, message.encode('utf-8'))
-        except:
+            print(f"sending {encoded_message} to {to_server_address}")
+            send_message(self.client_socket, encoded_message)
+        except Exception as e:
             print(f"closing socket")
             self.client_socket.close()
 
@@ -62,8 +64,9 @@ class Server:
                     operation = receive_message(connection)
 
                     if operation:
+                        send_pending = True
                         string_request = operation.decode("utf-8")
-                        server_id, string_operation = self.return_address_and_message(string_request)
+                        server_name, string_operation = self.return_address_and_message(string_request)
 
                         print("received " + string_operation)
 
@@ -85,11 +88,24 @@ class Server:
                             response = str(self.kvs.log)
                         elif string_operation == "youre_the_leader":
                             self.broadcast(self.with_return_address('log_length?'))
+                            response = "Broadcasting to other servers to catch up their logs."
+                        elif string_operation in [
+                            "Caught up. Thanks!",
+                            "Sorry, I don't understand that command.",
+                            "Your info is at least as good as mine!",
+                            "Broadcasting to other servers to catch up their logs."
+                        ]:
+                            send_pending = False
                         else:
                             response = kvs.execute(string_operation)
 
-                        response = self.with_return_address(response)
-                        send_message(connection, response.encode('utf-8'))
+                        if send_pending:
+                            response = self.with_return_address(response)
+
+                            if server_name == "client":
+                                send_message(connection, response.encode('utf-8'))
+                            else:
+                                self.tell(response, to_server_address=self.address_of(server_name))
 
                     else:
                         print("no more data")
