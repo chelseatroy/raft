@@ -13,8 +13,11 @@ class Server:
         self.kvs = KeyValueStore()
 
     def destination_addresses(self):
-        other_servers = {k: (v[0], int(v[1])) for (k, v) in server_nodes().items() if k != self.name}
+        other_servers = {k: v for (k, v) in server_nodes().items() if k != self.name}
         return list(other_servers.values())
+
+    def address_of(self, server_name):
+        return server_nodes()[server_name]
 
     def tell(self, message, to_server_address):
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
@@ -59,7 +62,9 @@ class Server:
                     operation = receive_message(connection)
 
                     if operation:
-                        string_operation = operation.decode("utf-8")
+                        string_request = operation.decode("utf-8")
+                        server_id, string_operation = self.return_address_and_message(string_request)
+
                         print("received " + string_operation)
 
                         if string_operation == "log_length?":
@@ -79,10 +84,11 @@ class Server:
                         elif string_operation == "show_log":
                             response = str(self.kvs.log)
                         elif string_operation == "youre_the_leader":
-                            self.broadcast('log_length?')
+                            self.broadcast(self.with_return_address('log_length?'))
                         else:
                             response = kvs.execute(string_operation)
 
+                        response = self.with_return_address(response)
                         send_message(connection, response.encode('utf-8'))
 
                     else:
@@ -91,6 +97,13 @@ class Server:
 
             finally:
                 connection.close()
+
+    def return_address_and_message(self, string_request):
+        address_with_message = string_request.split("@")
+        return address_with_message[0], "@".join(address_with_message[1:])
+
+    def with_return_address(self, response):
+        return self.name + "@" + response
 
     def broadcast(self, message):
         for other_server_address in self.destination_addresses():
