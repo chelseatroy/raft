@@ -1,9 +1,12 @@
 import threading
+import time
+import os
 
 class KeyValueStore:
     client_lock = threading.Lock()
 
-    def __init__(self):
+    def __init__(self, server_name):
+        self.server_name = server_name
         self.data = {}
         self.log = []
 
@@ -16,8 +19,21 @@ class KeyValueStore:
     def delete(self, key):
         del self.data[key]
 
+    def catch_up(self):
+        if os.path.exists(self.server_name + "_log.txt"):
+            f = open(self.server_name + "_log.txt", "r")
+            log = f.read()
+            f.close()
+
+            for command in log.split('\n'):
+                self.execute(command)
+
     def execute(self, string_operation):
         self.log.append(string_operation)
+
+        f = open(self.server_name + "_log.txt", "a+")
+        f.write(string_operation + '\n')
+        f.close()
 
         command, key = 0, 1
         operands = string_operation.split(" ")
@@ -38,6 +54,5 @@ class KeyValueStore:
                 response = str(self.data)
             else:
                 pass
-
 
         return response
