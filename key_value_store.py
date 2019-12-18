@@ -31,10 +31,6 @@ class KeyValueStore:
     def execute(self, string_operation):
         self.log.append(string_operation)
 
-        f = open(self.server_name + "_log.txt", "a+")
-        f.write(string_operation + '\n')
-        f.close()
-
         command, key = 0, 1
         operands = string_operation.split(" ")
 
@@ -45,9 +41,11 @@ class KeyValueStore:
                 response = self.get(operands[key])
             elif operands[command] == "set":
                 value = " ".join(operands[2:])
+                self.write_to_log(string_operation)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
+                self.write_to_log(string_operation)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             elif operands[command] == "show":
@@ -56,3 +54,8 @@ class KeyValueStore:
                 pass
 
         return response
+
+    def write_to_log(self, string_operation):
+        f = open(self.server_name + "_log.txt", "a+")
+        f.write(string_operation + '\n')
+        f.close()
