@@ -28,7 +28,7 @@ class KeyValueStore:
             f.close()
 
             for command in log.split('\n'):
-                self.execute(command, write=False)
+                self.execute(command, term_absent=False, write=False)
 
         self.catch_up_successful = True
 
@@ -40,36 +40,35 @@ class KeyValueStore:
         return self.latest_term
 
 
-    def execute(self, string_operation, write=True):
-        if write:
-            command, key, values = 0, 1, 2
-            term = self.latest_term
-        else:
-            term, command, key, values = 0, 1, 2, 3
+    def execute(self, string_operation, term_absent, write=True):
+        print(string_operation)
 
         if len(string_operation) == 0:
             return
 
-        self.log.append(string_operation)
-
+        if term_absent:
+            string_operation = str(self.latest_term) + " " + string_operation
 
         operands = string_operation.split(" ")
+        term, command, key, values = 0, 1, 2, 3
 
         response = "Sorry, I don't understand that command."
 
         with self.client_lock:
-            if not write:
-                self.latest_term = int(operands[term])
+            self.latest_term = int(operands[term])
 
             if operands[command] == "get":
                 response = self.get(operands[key])
             elif operands[command] == "set":
                 value = " ".join(operands[values:])
+
+                self.log.append(string_operation)
                 if write:
                     self.write_to_log(term, string_operation)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
+                self.log.append(string_operation)
                 if write:
                     self.write_to_log(term, string_operation)
                 self.delete(operands[key])
@@ -83,5 +82,5 @@ class KeyValueStore:
 
     def write_to_log(self, current_term, string_operation):
         f = open(self.server_name + "_log.txt", "a+")
-        f.write(str(current_term) + " " + string_operation + '\n')
+        f.write(string_operation + '\n')
         f.close()

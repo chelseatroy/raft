@@ -25,15 +25,19 @@ class Server:
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
 
         self.client_socket = socket(AF_INET, SOCK_STREAM)
-        self.client_socket.connect(to_server_address)
-        encoded_message = message.encode('utf-8')
 
         try:
-            print(f"sending {encoded_message} to {to_server_address}")
-            send_message(self.client_socket, encoded_message)
-        except Exception as e:
-            print(f"closing socket due to {str(e)}")
-            self.client_socket.close()
+            self.client_socket.connect(to_server_address)
+            encoded_message = message.encode('utf-8')
+
+            try:
+                print(f"sending {encoded_message} to {to_server_address}")
+                send_message(self.client_socket, encoded_message)
+            except Exception as e:
+                print(f"closing socket due to {str(e)}")
+                self.client_socket.close()
+        except ConnectionRefusedError as e:
+            print(f"Ope, looks like {to_server_address[0]} port {to_server_address[1]} isn't up right now")
 
 
     def start(self):
@@ -69,7 +73,7 @@ class Server:
                         string_request = operation.decode("utf-8")
                         server_name, string_operation = self.return_address_and_message(string_request)
 
-                        print("received " + string_operation)
+                        print("from " + server_name + ": received " + string_operation)
 
                         if string_operation == "log_length?":
                             response = "log_length " + str(len(self.key_value_store.log))
@@ -82,11 +86,13 @@ class Server:
                                 response = "Your info is at least as good as mine!"
                         elif string_operation.split(" ")[0] == "catch_up_logs":
                             logs_to_append = ast.literal_eval(string_operation.split("catch_up_logs ")[1])
-                            [self.key_value_store.execute(log) for log in logs_to_append]
+                            [self.key_value_store.execute(log, term_absent=False) for log in logs_to_append]
 
                             response = "Caught up. Thanks!"
                         elif string_operation == "term":
                             response = str(self.term)
+                        elif string_operation == "destination_addresses":
+                            response = str(self.destination_addresses())
                         elif string_operation == "show_log":
                             response = str(self.key_value_store.log)
                         elif string_operation == "youre_the_leader":
@@ -100,7 +106,7 @@ class Server:
                         ]:
                             send_pending = False
                         else:
-                            response = kvs.execute(string_operation)
+                            response = kvs.execute(string_operation, term_absent=True)
 
                         if send_pending:
                             response = self.with_return_address(response)
