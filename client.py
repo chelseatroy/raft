@@ -13,7 +13,7 @@ class Client:
         self.sock.connect(server_address)
 
         running = True
-        while running == True:
+        while running:
             try:
                 message = input("Type your message:\n")
                 print(f"sending {message}")

@@ -31,7 +31,7 @@ class Server:
             print(f"sending {encoded_message} to {to_server_address}")
             send_message(self.client_socket, encoded_message)
         except Exception as e:
-            print(f"closing socket")
+            print(f"closing socket due to {str(e)}")
             self.client_socket.close()
 
 
@@ -47,7 +47,7 @@ class Server:
         self.server_socket = socket(AF_INET, SOCK_STREAM)
         self.server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.server_socket.bind(server_address)
-        self.server_socket.listen(1)
+        self.server_socket.listen(5)
 
         while True:
             connection, client_address = self.server_socket.accept()

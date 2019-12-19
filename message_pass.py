@@ -30,7 +30,7 @@ def receive_exactly(sock, nbytes):
         chunk = sock.recv(nbytes)   # Might return partial data (whatever received so far)
         if not chunk:
             # Connection closed!
-            raise IOError("Connection closed")
+            raise IOError("The other side closed this connection.")
         msg += chunk
         nbytes -= len(chunk)
     return msg
