@@ -12,7 +12,8 @@ class Client:
         print(f"connecting to {server_address[0]} port {server_address[1]}")
         self.sock.connect(server_address)
 
-        while True:
+        running = True
+        while running == True:
             try:
                 message = input("Type your message:\n")
                 print(f"sending {message}")
@@ -24,3 +25,4 @@ class Client:
             except:
                 print(f"closing socket")
                 self.sock.close()
+                running = False
