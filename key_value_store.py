@@ -9,6 +9,8 @@ class KeyValueStore:
         self.server_name = server_name
         self.data = {}
         self.log = []
+        self.catch_up_successful = False
+        self.latest_term = 0
 
     def get(self, key):
         return self.data.get(key, '')
@@ -28,26 +30,48 @@ class KeyValueStore:
             for command in log.split('\n'):
                 self.execute(command, write=False)
 
+        self.catch_up_successful = True
+
+    def get_latest_term(self):
+        if not self.catch_up_successful:
+            print("This store isn't caught up, so it doesn't know what term we're in!")
+            return
+
+        return self.latest_term
+
+
     def execute(self, string_operation, write=True):
+        if write:
+            command, key, values = 0, 1, 2
+            term = self.latest_term
+        else:
+            term, command, key, values = 0, 1, 2, 3
+
+        if len(string_operation) == 0:
+            return
+
         self.log.append(string_operation)
 
-        command, key = 0, 1
+
         operands = string_operation.split(" ")
 
         response = "Sorry, I don't understand that command."
 
         with self.client_lock:
+            if not write:
+                self.latest_term = int(operands[term])
+
             if operands[command] == "get":
                 response = self.get(operands[key])
             elif operands[command] == "set":
-                value = " ".join(operands[2:])
+                value = " ".join(operands[values:])
                 if write:
-                    self.write_to_log(string_operation)
+                    self.write_to_log(term, string_operation)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
                 if write:
-                    self.write_to_log(string_operation)
+                    self.write_to_log(term, string_operation)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             elif operands[command] == "show":
@@ -57,7 +81,7 @@ class KeyValueStore:
 
         return response
 
-    def write_to_log(self, string_operation):
+    def write_to_log(self, current_term, string_operation):
         f = open(self.server_name + "_log.txt", "a+")
-        f.write(string_operation + '\n')
+        f.write(str(current_term) + " " + string_operation + '\n')
         f.close()
