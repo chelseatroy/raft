@@ -21,9 +21,12 @@ class KeyValueStore:
     def delete(self, key):
         del self.data[key]
 
-    def catch_up(self):
-        if os.path.exists("logs/" + self.server_name + "_log.txt"):
-            f = open("logs/" + self.server_name + "_log.txt", "r")
+    def catch_up(self, path_to_logs):
+        if not path_to_logs:
+            path_to_logs = "logs/" + self.server_name + "_log.txt"
+
+        if os.path.exists(path_to_logs):
+            f = open(path_to_logs, "r")
             log = f.read()
             f.close()
 
@@ -64,13 +67,13 @@ class KeyValueStore:
 
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(term, string_operation)
+                    self.write_to_log(string_operation)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(term, string_operation)
+                    self.write_to_log(string_operation)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             elif operands[command] == "show":
@@ -80,7 +83,9 @@ class KeyValueStore:
 
         return response
 
-    def write_to_log(self, current_term, string_operation):
-        f = open("logs/" + self.server_name + "_log.txt", "a+")
+    def write_to_log(self, string_operation, path_to_logs):
+        if not path_to_logs:
+            path_to_logs = "logs/" + self.server_name + "_log.txt"
+        f = open(path_to_logs, "a+")
         f.write(string_operation + '\n')
         f.close()

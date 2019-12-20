@@ -1,0 +1,3 @@
+0 set Sibyl cruelty
+0 set Basil wrath
+1 set Sibyl cruelty
