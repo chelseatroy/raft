@@ -22,8 +22,8 @@ class KeyValueStore:
         del self.data[key]
 
     def catch_up(self):
-        if os.path.exists(self.server_name + "_log.txt"):
-            f = open(self.server_name + "_log.txt", "r")
+        if os.path.exists("logs/" + self.server_name + "_log.txt"):
+            f = open("logs/" + self.server_name + "_log.txt", "r")
             log = f.read()
             f.close()
 
@@ -81,6 +81,6 @@ class KeyValueStore:
         return response
 
     def write_to_log(self, current_term, string_operation):
-        f = open(self.server_name + "_log.txt", "a+")
+        f = open("logs/" + self.server_name + "_log.txt", "a+")
         f.write(string_operation + '\n')
         f.close()

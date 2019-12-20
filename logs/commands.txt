@@ -1,0 +1,13 @@
+set a 1
+set b 2
+get b
+set a 1
+set b 2
+set a 1
+set b 2
+set c 3
+set d 4
+set q 12
+set z 26
+set y 25
+set x 24

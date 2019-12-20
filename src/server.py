@@ -1,9 +1,11 @@
-from socket import *
-import threading
-from key_value_store import KeyValueStore
-from message_pass import *
-from config import server_nodes
 import ast
+import threading
+from socket import *
+
+from src.message_pass import *
+
+from src.config import server_nodes
+from src.key_value_store import KeyValueStore
 
 
 class Server:
@@ -36,6 +38,8 @@ class Server:
             except Exception as e:
                 print(f"closing socket due to {str(e)}")
                 self.client_socket.close()
+        except OSError as e:
+            print("Bad file descriptor, supposedly: " + str(e))
         except ConnectionRefusedError as e:
             print(f"Ope, looks like {to_server_address[0]} port {to_server_address[1]} isn't up right now")
 
@@ -43,7 +47,7 @@ class Server:
     def start(self):
         server_address = ('localhost', self.port)
 
-        f = open("server_registry.txt", "a")
+        f = open("logs/server_registry.txt", "a")
         f.write(self.name + " localhost " + str(self.port) + '\n')
         f.close()
 

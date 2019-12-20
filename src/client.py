@@ -1,5 +1,7 @@
 import socket
-from message_pass import *
+
+from src.message_pass import *
+
 
 class Client:
     def __init__(self, server_port=10000):

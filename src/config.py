@@ -2,7 +2,7 @@
 def server_nodes():
     registry = {}
 
-    f = open("server_registry.txt", "r")
+    f = open("logs/server_registry.txt", "r")
     log = f.read()
     f.close()
 
