@@ -1,8 +1,8 @@
 
-def server_nodes():
+def server_nodes(path_to_registry="logs/server_registry.txt"):
     registry = {}
 
-    f = open("logs/server_registry.txt", "r")
+    f = open(path_to_registry, "r")
     log = f.read()
     f.close()
 

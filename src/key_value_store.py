@@ -43,7 +43,7 @@ class KeyValueStore:
         return self.latest_term
 
 
-    def execute(self, string_operation, term_absent, write=True):
+    def execute(self, string_operation, term_absent, write=True, path_to_logs=''):
         print(string_operation)
 
         if len(string_operation) == 0:
@@ -67,13 +67,13 @@ class KeyValueStore:
 
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(string_operation)
+                    self.write_to_log(string_operation, path_to_logs=path_to_logs)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(string_operation)
+                    self.write_to_log(string_operation, path_to_logs=path_to_logs)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             elif operands[command] == "show":
@@ -83,8 +83,8 @@ class KeyValueStore:
 
         return response
 
-    def write_to_log(self, string_operation, path_to_logs):
-        if not path_to_logs:
+    def write_to_log(self, string_operation, path_to_logs=''):
+        if path_to_logs == '':
             path_to_logs = "logs/" + self.server_name + "_log.txt"
         f = open(path_to_logs, "a+")
         f.write(string_operation + '\n')
