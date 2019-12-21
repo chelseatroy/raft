@@ -21,8 +21,8 @@ class KeyValueStore:
     def delete(self, key):
         del self.data[key]
 
-    def catch_up(self, path_to_logs):
-        if not path_to_logs:
+    def catch_up(self, path_to_logs=''):
+        if path_to_logs == '':
             path_to_logs = "logs/" + self.server_name + "_log.txt"
 
         if os.path.exists(path_to_logs):
