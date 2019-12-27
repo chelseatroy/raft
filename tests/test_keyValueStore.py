@@ -21,18 +21,18 @@ class TestKeyValueStore():
         assert kvs.get("Sibyl") == ""
 
     def test_write_to_log(self):
-        self.cleanup_file(TEST_LOG_PATH)
+        self.clean_up_file(TEST_LOG_PATH)
 
         kvs = KeyValueStore(server_name="DorianGray")
         kvs.write_to_log("set Sibyl cruelty", TEST_LOG_PATH)
-        self.assert_on_file(path=TEST_LOG_PATH, length=2, lines="0 set Sibyl cruelty")
+        self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
 
         kvs.write_to_log("Set Basil wrath", TEST_LOG_PATH)
-        self.assert_on_file(path=TEST_LOG_PATH, length=3, lines=["0 set Sibyl cruelty", "0 set Basil wrath"])
+        self.assert_on_file(path=TEST_LOG_PATH, length=2, lines=["0 set Sibyl cruelty", "0 set Basil wrath"])
 
 
     def test_catch_up(self):
-        self.cleanup_file(TEST_LOG_PATH)
+        self.clean_up_file(TEST_LOG_PATH)
 
         kvs = KeyValueStore(server_name="DorianGray")
         kvs.write_to_log("0 set Sibyl cruelty", TEST_LOG_PATH)
@@ -65,43 +65,43 @@ class TestKeyValueStore():
         assert latest_term == 1
 
     def test_execute_from_client(self):
-        self.cleanup_file(TEST_LOG_PATH)
+        self.clean_up_file(TEST_LOG_PATH)
         kvs = KeyValueStore(server_name="DorianGray")
 
         kvs.execute("set Sibyl cruelty", term_absent=True, write=True, path_to_logs=TEST_LOG_PATH)
 
-        self.assert_on_file(path=TEST_LOG_PATH, length=2, lines="0 set Sibyl cruelty")
+        self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
 
     def test_execute_from_logs_upon_restart(self):
-        self.cleanup_file(TEST_LOG_PATH)
+        self.clean_up_file(TEST_LOG_PATH)
         kvs = KeyValueStore(server_name="DorianGray")
         kvs.write_to_log(string_operation="0 set Sibyl cruelty", path_to_logs=TEST_LOG_PATH)
         assert not kvs.get("Sibyl")
 
         kvs.execute("0 set Sibyl cruelty", term_absent=False, write=False, path_to_logs=TEST_LOG_PATH)
 
-        self.assert_on_file(path=TEST_LOG_PATH, length=2, lines="0 set Sibyl cruelty")
+        self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
 
     def test_execute_from_leader_catchup_command(self):
-        self.cleanup_file(TEST_LOG_PATH)
+        self.clean_up_file(TEST_LOG_PATH)
         kvs = KeyValueStore(server_name="DorianGray")
         assert not kvs.get("Sibyl")
 
         kvs.execute("0 set Sibyl cruelty", term_absent=False, write=True, path_to_logs=TEST_LOG_PATH)
 
-        self.assert_on_file(path=TEST_LOG_PATH, length=2, lines="0 set Sibyl cruelty")
+        self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
 
     def assert_on_file(self, path, length, lines):
         with open(path, "r") as file:
-            lines = file.read().split("\n")
+            lines = file.read().splitlines()
             assert len(lines) == length
             for index, line in enumerate(lines):
                 assert lines[index] == line
 
-    def cleanup_file(self, filename):
+    def clean_up_file(self, filename):
         open(filename, 'w').close()
 
 

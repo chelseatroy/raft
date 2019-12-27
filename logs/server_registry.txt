@@ -1,15 +1,6 @@
 
-
 every localhost 10000
 tom localhost 10001
-every localhost 10000
-tom localhost 10001
-every localhost 10000
-every localhost 10000
-every localhost 10000
-every localhost 10000
-every localhost 10000
-every localhost 10000
-every localhost 10000
-every localhost 10000
-tom localhost 10001
+dick localhost 10002
+and localhost 10003
+harry localhost 10004

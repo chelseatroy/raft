@@ -1,10 +1,11 @@
 import threading
 from socket import *
+import time
 
 from src.message_pass import *
 
 from src.key_value_store import KeyValueStore
-from src.idk_some_shit import respond, address_of
+from src.parsing import respond, address_of
 
 
 class Server:
@@ -18,18 +19,20 @@ class Server:
     def tell(self, message, to_server_address):
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
 
-        self.client_socket = socket(AF_INET, SOCK_STREAM)
+        peer_socket = socket(AF_INET, SOCK_STREAM)
 
         try:
-            self.client_socket.connect(to_server_address)
+            peer_socket.connect(to_server_address)
             encoded_message = message.encode('utf-8')
 
             try:
                 print(f"sending {encoded_message} to {to_server_address}")
-                send_message(self.client_socket, encoded_message)
+                send_message(peer_socket, encoded_message)
+                time.sleep(0.5)
+                peer_socket.close()
             except Exception as e:
                 print(f"closing socket due to {str(e)}")
-                self.client_socket.close()
+                peer_socket.close()
         except OSError as e:
             print("Bad file descriptor, supposedly: " + str(e))
         except ConnectionRefusedError as e:
@@ -48,7 +51,7 @@ class Server:
         self.server_socket = socket(AF_INET, SOCK_STREAM)
         self.server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.server_socket.bind(server_address)
-        self.server_socket.listen(5)
+        self.server_socket.listen(6000)
 
         while True:
             connection, client_address = self.server_socket.accept()
@@ -57,24 +60,24 @@ class Server:
             threading.Thread(target=self.handle_client, args=(connection, self.key_value_store)).start()
 
     def handle_client(self, connection, kvs):
-        while True:
-            print('waiting for a connection')
+        try:
+            while True:
+                operation = receive_message(connection)
 
-            try:
-                while True:
-                    operation = receive_message(connection)
+                if operation:
+                    destination, response = respond(self, kvs, operation)
 
-                    if operation:
-                        destination, response = respond(self, kvs, operation)
-
-                        if destination == "client":
-                            send_message(connection, response.encode('utf-8'))
-                        else:
-                            self.tell(response, to_server_address=address_of(destination))
-
-                    else:
-                        print("no more data")
+                    if response == '':
                         break
 
-            finally:
-                connection.close()
+                    if destination == "client":
+                        send_message(connection, response.encode('utf-8'))
+                    else:
+                        self.tell(response, to_server_address=address_of(destination))
+
+                else:
+                    print("no more data")
+                    break
+
+        finally:
+            connection.close()

@@ -7,6 +7,9 @@ def respond(server, key_value_store, operation):
     string_request = operation.decode("utf-8")
     server_name, string_operation = return_address_and_message(string_request)
     print("from " + server_name + ": received " + string_operation)
+
+    response = ''
+
     if string_operation == "log_length?":
         response = "log_length " + str(len(key_value_store.log))
     elif string_operation.split(" ")[0] == "log_length":
@@ -39,6 +42,7 @@ def respond(server, key_value_store, operation):
         send_pending = False
     else:
         response = key_value_store.execute(string_operation, term_absent=True)
+
     if send_pending:
         response = with_return_address(server, response)
 
