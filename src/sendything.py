@@ -8,7 +8,7 @@ from src.key_value_store import KeyValueStore
 from src.parsing import respond, address_of
 
 
-class Server:
+class SendyThing:
     def __init__(self, name, port=10000):
         self.port = port
         self.name = name
