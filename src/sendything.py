@@ -5,18 +5,19 @@ import time
 from src.message_pass import *
 
 from src.key_value_store import KeyValueStore
-from src.parsing import respond, address_of
+from src.parsing import respond, address_of, with_return_address, broadcast
 
 
-class SendyThing:
+class Server:
     def __init__(self, name, port=10000):
         self.port = port
         self.name = name
         self.key_value_store = KeyValueStore(server_name=name)
         self.key_value_store.catch_up()
         self.term = self.key_value_store.get_latest_term()
+        self.leader = leader
 
-    def tell(self, message, to_server_address):
+    def send(self, message, to_server_address):
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
 
         peer_socket = socket(AF_INET, SOCK_STREAM)
@@ -53,16 +54,26 @@ class SendyThing:
         self.server_socket.bind(server_address)
         self.server_socket.listen(6000)
 
+        threading.Timer(5.0, self.prove_aliveness).start()
+
         while True:
             connection, client_address = self.server_socket.accept()
             print("connection from " + str(client_address))
 
-            threading.Thread(target=self.handle_client, args=(connection, self.key_value_store)).start()
+            threading.Thread(target=self.manage_messaging, args=(connection, self.key_value_store)).start()
 
-    def handle_client(self, connection, kvs):
+    def prove_aliveness(self):
+        if self.leader:
+            print("prove_aliveness happening")
+            broadcast(self, with_return_address(self, "append_entries []"))
+
+    def manage_messaging(self, connection, kvs):
+        start = time.time()
+
         try:
             while True:
                 operation = receive_message(connection)
+
 
                 if operation:
                     destination, response = respond(self, kvs, operation)
@@ -73,7 +84,7 @@ class SendyThing:
                     if destination == "client":
                         send_message(connection, response.encode('utf-8'))
                     else:
-                        self.tell(response, to_server_address=address_of(destination))
+                        self.send(response, to_server_address=address_of(destination))
 
                 else:
                     print("no more data")

@@ -40,7 +40,7 @@ def return_address_and_message(string_request):
 
 def broadcast(server, message):
     for other_server_address in destination_addresses(server.name):
-        server.tell(message, to_server_address=other_server_address)
+        server.send(message, to_server_address=other_server_address)
 
 def with_return_address(server, response):
     return server.name + "@" + response

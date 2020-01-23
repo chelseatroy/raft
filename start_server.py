@@ -1,5 +1,5 @@
 import sys
 
-from src.server import Server
+from src.sendything import SendyThing
 
-Server(name=str(sys.argv[1]), port=int(sys.argv[2])).start()
+SendyThing(name=str(sys.argv[1]), port=int(sys.argv[2]), leader=bool(sys.argv[3])).start()
