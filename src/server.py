@@ -9,7 +9,7 @@ from src.parsing import respond, address_of, with_return_address, broadcast
 
 
 class Server:
-    def __init__(self, name, port=10000):
+    def __init__(self, name, port=10000, leader=False):
         self.port = port
         self.name = name
         self.key_value_store = KeyValueStore(server_name=name)
@@ -63,8 +63,8 @@ class Server:
             threading.Thread(target=self.manage_messaging, args=(connection, self.key_value_store)).start()
 
     def prove_aliveness(self):
+        print("Sending Heartbeat!")
         if self.leader:
-            print("prove_aliveness happening")
             broadcast(self, with_return_address(self, "append_entries []"))
 
     def manage_messaging(self, connection, kvs):

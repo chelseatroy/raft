@@ -12,10 +12,13 @@ def respond(server, key_value_store, operation):
     response = ''
 
     if string_operation.split(" ")[0] == "append_entries":
-        logs_to_append = ast.literal_eval(string_operation.split("catch_up_logs ")[1])
+        stringified_logs_to_append = string_operation.split(" ")[1]
+        print(stringified_logs_to_append)
+        logs_to_append = ast.literal_eval(stringified_logs_to_append)
         [key_value_store.execute(log, term_absent=False) for log in logs_to_append]
 
-        response = "Caught up. Thanks!"
+        send_pending = False
+
     elif string_operation in [
         "Caught up. Thanks!",
         "Sorry, I don't understand that command.",
