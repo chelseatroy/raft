@@ -54,7 +54,7 @@ class Server:
         self.server_socket.bind(server_address)
         self.server_socket.listen(6000)
 
-        threading.Timer(5.0, self.prove_aliveness).start()
+        self.prove_aliveness()
 
         while True:
             connection, client_address = self.server_socket.accept()
@@ -66,8 +66,9 @@ class Server:
         print("Sending Heartbeat!")
         if self.leader:
             broadcast(self, with_return_address(self, "append_entries []"))
+        threading.Timer(5.0, self.prove_aliveness).start()
 
-    def manage_messaging(self, connection, kvs):
+        def manage_messaging(self, connection, kvs):
         start = time.time()
 
         try:
