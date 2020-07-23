@@ -21,7 +21,7 @@ class Server:
         self.leader = leader
         self.followers_with_update_status = {}
         self.current_operation = ''
-        self.current_destination = None
+        self.current_operation_committed = False
 
         for server_name in other_server_names(name):
             self.followers_with_update_status[server_name] = False
@@ -83,8 +83,10 @@ class Server:
         trues = len(list(filter(lambda x: x is True, self.followers_with_update_status.values())))
         falses = len(list(filter(lambda x: x is False, self.followers_with_update_status.values())))
         if trues > falses:
-            print("COMMITTING ENTRY HOORAY!")
+            print("Committing entry: " + self.current_operation)
+            self.current_operation_committed = True
             self.key_value_store.execute(self.current_operation, term_absent=True, write=False)
+            self.current_operation_committed = False
             #how to get a message back to the client that it has been committed?
 
 
@@ -96,7 +98,6 @@ class Server:
 
                 if operation:
                     destination, response = self.respond(kvs, operation)
-                    self.current_destination = destination
 
                     if response == '':
                         break
@@ -146,15 +147,12 @@ class Server:
                 key_value_store.write_to_log(string_operation, term_absent=True)
 
                 if self.current_operation.split(" ")[0] in ["set", "delete"]:
-                    print("SHOULD BE BROADCASTING")
                     broadcast(self, with_return_address(self, "append_entries [" + self.current_operation + "]"))
 
-                #how to send a delayed response to the destination after
-                #logs are replicated on many servers?
-                send_pending = False
+                while not self.current_operation_committed:
+                    print("WAITITNG")
+                response = "Entry committed."
             else:
-                print("GETGING HERE")
-                #Do not accept. Say this is not the leader.
                 response = "I am not the leader. Please leave me alone."
 
         if send_pending:
