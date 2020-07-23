@@ -67,13 +67,13 @@ class KeyValueStore:
 
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(string_operation, path_to_logs=path_to_logs)
+                    self.write_to_log(string_operation, term_absent=False, path_to_logs=path_to_logs)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
                 self.log.append(string_operation)
                 if write:
-                    self.write_to_log(string_operation, path_to_logs=path_to_logs)
+                    self.write_to_log(string_operation, term_absent=False, path_to_logs=path_to_logs)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             elif operands[command] == "show":
@@ -83,9 +83,28 @@ class KeyValueStore:
 
         return response
 
-    def write_to_log(self, string_operation, path_to_logs=''):
-        if path_to_logs == '':
-            path_to_logs = "logs/" + self.server_name + "_log.txt"
-        f = open(path_to_logs, "a+")
-        f.write(string_operation + '\n')
-        f.close()
+
+    #used in leader server when client sends a command
+    def write_to_log(self, string_operation, term_absent, path_to_logs=''):
+        print(string_operation)
+
+        if len(string_operation) == 0:
+            return ''
+
+        operands = string_operation.split(" ")
+        term, command, key, values = 0, 1, 2, 3
+
+        if operands[command] in ["set", "delete"]:
+            if term_absent:
+                string_operation = str(self.latest_term) + " " + string_operation
+
+            if path_to_logs == '':
+                path_to_logs = "logs/" + self.server_name + "_log.txt"
+            f = open(path_to_logs, "a+")
+            f.write(string_operation + '\n')
+            f.close()
+
+            return string_operation
+
+        return ''
+

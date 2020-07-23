@@ -5,7 +5,10 @@ import time
 from src.message_pass import *
 
 from src.key_value_store import KeyValueStore
-from src.parsing import respond, address_of, with_return_address, broadcast
+from src.parsing import address_of, with_return_address, broadcast, return_address_and_message
+
+from src.config import other_server_names, server_nodes, destination_addresses
+import ast
 
 
 class Server:
@@ -16,6 +19,12 @@ class Server:
         self.key_value_store.catch_up()
         self.term = self.key_value_store.get_latest_term()
         self.leader = leader
+        self.followers_with_update_status = {}
+        self.current_operation = ''
+        self.current_destination = None
+
+        for server_name in other_server_names(name):
+            self.followers_with_update_status[server_name] = False
 
     def send(self, message, to_server_address):
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
@@ -54,7 +63,8 @@ class Server:
         self.server_socket.bind(server_address)
         self.server_socket.listen(6000)
 
-        self.prove_aliveness()
+        if self.leader:
+            self.prove_aliveness()
 
         while True:
             connection, client_address = self.server_socket.accept()
@@ -66,18 +76,27 @@ class Server:
         print("Sending Heartbeat!")
         if self.leader:
             broadcast(self, with_return_address(self, "append_entries []"))
-        threading.Timer(5.0, self.prove_aliveness).start()
+            threading.Timer(5.0, self.prove_aliveness).start()
 
-        def manage_messaging(self, connection, kvs):
-        start = time.time()
+    def mark_updated(self, server_name):
+        self.followers_with_update_status[server_name] = True
+        trues = len(list(filter(lambda x: x is True, self.followers_with_update_status.values())))
+        falses = len(list(filter(lambda x: x is False, self.followers_with_update_status.values())))
+        if trues > falses:
+            print("COMMITTING ENTRY HOORAY!")
+            self.key_value_store.execute(self.current_operation, term_absent=True, write=False)
+            #how to get a message back to the client that it has been committed?
 
+
+        # Thinks it's not used but actually it is in a thread above
+    def manage_messaging(self, connection, kvs):
         try:
             while True:
                 operation = receive_message(connection)
 
-
                 if operation:
-                    destination, response = respond(self, kvs, operation)
+                    destination, response = self.respond(kvs, operation)
+                    self.current_destination = destination
 
                     if response == '':
                         break
@@ -93,3 +112,52 @@ class Server:
 
         finally:
             connection.close()
+
+    def respond(self, key_value_store, operation):
+        send_pending = True
+        string_request = operation.decode("utf-8")
+        server_name, string_operation = return_address_and_message(string_request)
+        print("from " + server_name + ": received " + string_operation)
+
+        response = ''
+
+        if string_operation.split(" ")[0] == "append_entries":
+            # followers do this to update their logs.
+            stringified_logs_to_append = string_operation.split(" ")[1]
+            print(stringified_logs_to_append)
+            logs_to_append = ast.literal_eval(stringified_logs_to_append)
+            [key_value_store.execute(log, term_absent=False) for log in logs_to_append]
+
+            response = "Append entries call successful!"
+
+        elif string_operation in [
+            "Caught up. Thanks!",
+            "Sorry, I don't understand that command.",
+            "Broadcasting to other servers to catch up their logs.",
+        ]:
+            send_pending = False
+        elif string_operation == "Append entries call successful!":
+            if self.leader:
+                self.mark_updated(server_name)
+            send_pending = False
+        else:
+            if self.leader:
+                self.current_operation = string_operation
+                key_value_store.write_to_log(string_operation, term_absent=True)
+
+                if self.current_operation.split(" ")[0] in ["set", "delete"]:
+                    print("SHOULD BE BROADCASTING")
+                    broadcast(self, with_return_address(self, "append_entries [" + self.current_operation + "]"))
+
+                #how to send a delayed response to the destination after
+                #logs are replicated on many servers?
+                send_pending = False
+            else:
+                print("GETGING HERE")
+                #Do not accept. Say this is not the leader.
+                response = "I am not the leader. Please leave me alone."
+
+        if send_pending:
+            response = with_return_address(self, response)
+
+        return server_name, response
