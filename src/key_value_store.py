@@ -103,13 +103,13 @@ class KeyValueStore:
 
     #used in leader server when client sends a command
     def write_to_log(self, string_operation, term_absent, path_to_logs=''):
-        print(string_operation)
+        print("Writing to log: " + string_operation)
 
         if len(string_operation) == 0:
             return ''
 
         operands = string_operation.split(" ")
-        term, command, key, values = 0, 1, 2, 3
+        command, key, values = 0, 1, 2
 
         if operands[command] in ["set", "delete"]:
             if term_absent:

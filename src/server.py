@@ -150,7 +150,7 @@ class Server:
                     broadcast(self, with_return_address(self, "append_entries [" + self.current_operation + "]"))
 
                     while not self.current_operation_committed:
-                        print("WAITING")
+                        pass
                     response = "Entry committed."
                 else:
                     response = key_value_store.read(self.current_operation)
