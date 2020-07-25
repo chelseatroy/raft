@@ -82,15 +82,15 @@ class Server:
         self.followers_with_update_status[server_name] = True
         trues = len(list(filter(lambda x: x is True, self.followers_with_update_status.values())))
         falses = len(list(filter(lambda x: x is False, self.followers_with_update_status.values())))
-        if trues > falses:
+        if trues >= falses:
             print("Committing entry: " + self.current_operation)
             self.current_operation_committed = True
             self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True, write=False)
+            broadcast(self, with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
+
             self.current_operation_committed = False
-            #how to get a message back to the client that it has been committed?
 
-
-        # Thinks it's not used but actually it is in a thread above
+    # Thinks it's not used but actually it is in a thread above
     def manage_messaging(self, connection, kvs):
         try:
             while True:
@@ -128,14 +128,23 @@ class Server:
             print("Preparing to append: " + stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
             [key_value_store.write_to_log(log, term_absent=True) for log in logs_to_append]
-            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
+            print("State machine after appending: " + str(key_value_store.data))
 
             response = "Append entries call successful!"
+        elif string_operation.split(" ")[0] == "commit_entries":
+            # followers do this to update their logs.
+            stringified_logs_to_append = string_operation.replace("commit_entries ", "")
+            print("Preparing to commit: " + stringified_logs_to_append)
+            logs_to_append = ast.literal_eval(stringified_logs_to_append)
+            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
 
+            response = "Commit entries call successful!"
+            print("State machine after committing: " + str(key_value_store.data))
         elif string_operation in [
             "Caught up. Thanks!",
             "Sorry, I don't understand that command.",
             "Broadcasting to other servers to catch up their logs.",
+            "Commit entries call successful!",
         ]:
             send_pending = False
         elif string_operation == "Append entries call successful!":
@@ -152,7 +161,8 @@ class Server:
 
                     while not self.current_operation_committed:
                         pass
-                    response = "Entry committed."
+
+                    send_pending = False
                 else:
                     response = key_value_store.read(self.current_operation)
             else:

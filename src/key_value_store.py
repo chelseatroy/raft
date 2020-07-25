@@ -44,7 +44,7 @@ class KeyValueStore:
 
 
     def write_to_state_machine(self, string_operation, term_absent, write=True, path_to_logs=''):
-        print(string_operation)
+        print("Writing to state machine: " + string_operation)
 
         if len(string_operation) == 0:
             return
