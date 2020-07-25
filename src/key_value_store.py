@@ -31,7 +31,7 @@ class KeyValueStore:
             f.close()
 
             for command in log.split('\n'):
-                self.execute(command, term_absent=False, write=False)
+                self.write_to_state_machine(command, term_absent=False, write=False)
 
         self.catch_up_successful = True
 
@@ -43,7 +43,7 @@ class KeyValueStore:
         return self.latest_term
 
 
-    def execute(self, string_operation, term_absent, write=True, path_to_logs=''):
+    def write_to_state_machine(self, string_operation, term_absent, write=True, path_to_logs=''):
         print(string_operation)
 
         if len(string_operation) == 0:
@@ -60,9 +60,7 @@ class KeyValueStore:
         with self.client_lock:
             self.latest_term = int(operands[term])
 
-            if operands[command] == "get":
-                response = self.get(operands[key])
-            elif operands[command] == "set":
+            if operands[command] == "set":
                 value = " ".join(operands[values:])
 
                 self.log.append(string_operation)
@@ -76,13 +74,32 @@ class KeyValueStore:
                     self.write_to_log(string_operation, term_absent=False, path_to_logs=path_to_logs)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
+            else:
+                pass
+
+        return response
+
+    def read(self, string_operation):
+        print(string_operation)
+
+        if len(string_operation) == 0:
+            return
+
+        operands = string_operation.split(" ")
+        print("the read command is " + string_operation)
+        command, key, values = 0, 1, 2
+
+        response = "Sorry, I don't understand that command."
+
+        with self.client_lock:
+            if operands[command] == "get":
+                response = self.get(operands[key])
             elif operands[command] == "show":
                 response = str(self.data)
             else:
                 pass
 
         return response
-
 
     #used in leader server when client sends a command
     def write_to_log(self, string_operation, term_absent, path_to_logs=''):

@@ -85,7 +85,7 @@ class Server:
         if trues > falses:
             print("Committing entry: " + self.current_operation)
             self.current_operation_committed = True
-            self.key_value_store.execute(self.current_operation, term_absent=True, write=False)
+            self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True, write=False)
             self.current_operation_committed = False
             #how to get a message back to the client that it has been committed?
 
@@ -127,7 +127,7 @@ class Server:
             stringified_logs_to_append = string_operation.split(" ")[1]
             print(stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.execute(log, term_absent=False) for log in logs_to_append]
+            [key_value_store.write_to_state_machine(log, term_absent=False) for log in logs_to_append]
 
             response = "Append entries call successful!"
 
@@ -144,14 +144,16 @@ class Server:
         else:
             if self.leader:
                 self.current_operation = string_operation
-                key_value_store.write_to_log(string_operation, term_absent=True)
 
                 if self.current_operation.split(" ")[0] in ["set", "delete"]:
+                    key_value_store.write_to_log(string_operation, term_absent=True)
                     broadcast(self, with_return_address(self, "append_entries [" + self.current_operation + "]"))
 
-                while not self.current_operation_committed:
-                    print("WAITITNG")
-                response = "Entry committed."
+                    while not self.current_operation_committed:
+                        print("WAITING")
+                    response = "Entry committed."
+                else:
+                    response = key_value_store.read(self.current_operation)
             else:
                 response = "I am not the leader. Please leave me alone."
 
