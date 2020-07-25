@@ -124,10 +124,11 @@ class Server:
 
         if string_operation.split(" ")[0] == "append_entries":
             # followers do this to update their logs.
-            stringified_logs_to_append = string_operation.split(" ")[1]
-            print(stringified_logs_to_append)
+            stringified_logs_to_append = string_operation.replace("append_entries ", "")
+            print("Preparing to append: " + stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.write_to_state_machine(log, term_absent=False) for log in logs_to_append]
+            [key_value_store.write_to_log(log, term_absent=True) for log in logs_to_append]
+            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
 
             response = "Append entries call successful!"
 
@@ -147,7 +148,7 @@ class Server:
 
                 if self.current_operation.split(" ")[0] in ["set", "delete"]:
                     key_value_store.write_to_log(string_operation, term_absent=True)
-                    broadcast(self, with_return_address(self, "append_entries [" + self.current_operation + "]"))
+                    broadcast(self, with_return_address(self, "append_entries ['" + self.current_operation + "']"))
 
                     while not self.current_operation_committed:
                         pass
