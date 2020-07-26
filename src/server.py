@@ -80,6 +80,7 @@ class Server:
 
     def mark_updated(self, server_name):
         self.followers_with_update_status[server_name] = True
+
         trues = len(list(filter(lambda x: x is True, self.followers_with_update_status.values())))
         falses = len(list(filter(lambda x: x is False, self.followers_with_update_status.values())))
         if trues >= falses:
@@ -89,6 +90,9 @@ class Server:
             broadcast(self, with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
 
             self.current_operation_committed = False
+            for server_name in other_server_names(self.name):
+                self.followers_with_update_status[server_name] = False
+
 
     # Thinks it's not used but actually it is in a thread above
     def manage_messaging(self, connection, kvs):
