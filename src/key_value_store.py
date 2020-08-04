@@ -11,6 +11,7 @@ class KeyValueStore:
         self.log = []
         self.catch_up_successful = False
         self.latest_term = 0
+        self.highest_index = 0
 
     def get(self, key):
         return self.data.get(key, '')
@@ -50,10 +51,11 @@ class KeyValueStore:
             return
 
         if term_absent:
-            string_operation = str(self.latest_term) + " " + string_operation
+            string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
+            self.highest_index = self.highest_index + 1
 
         operands = string_operation.split(" ")
-        term, command, key, values = 0, 1, 2, 3
+        index, term, command, key, values = 0, 1, 2, 3, 4
 
         response = "Sorry, I don't understand that command."
 
@@ -113,7 +115,8 @@ class KeyValueStore:
 
         if operands[command] in ["set", "delete"]:
             if term_absent:
-                string_operation = str(self.latest_term) + " " + string_operation
+                string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
+                self.highest_index = self.highest_index + 1
 
             if path_to_logs == '':
                 path_to_logs = "logs/" + self.server_name + "_log.txt"
