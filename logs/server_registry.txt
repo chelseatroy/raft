@@ -1,3 +1,0 @@
-
-every localhost 10000
-every localhost 10000
