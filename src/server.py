@@ -6,6 +6,7 @@ from src.message_pass import *
 
 from src.key_value_store import KeyValueStore
 from src.parsing import address_of, with_return_address, broadcast, return_address_and_message
+from src.append_entries_call import AppendEntriesCall
 
 from src.config import other_server_names, server_nodes, destination_addresses
 import ast
@@ -75,7 +76,14 @@ class Server:
     def prove_aliveness(self):
         print("Sending Heartbeat!")
         if self.leader:
-            broadcast(self, with_return_address(self, "append_entries []"))
+            broadcast(self, with_return_address(
+                self,
+                AppendEntriesCall(
+                    previous_index=self.key_value_store.highest_index,
+                    previous_term=self.key_value_store.latest_term,
+                    entries=[]
+                ).to_message()
+            ))
             threading.Timer(5.0, self.prove_aliveness).start()
 
     def mark_updated(self, server_name):
@@ -128,10 +136,8 @@ class Server:
 
         if string_operation.split(" ")[0] == "append_entries":
             # followers do this to update their logs.
-            stringified_logs_to_append = string_operation.replace("append_entries ", "")
-            print("Preparing to append: " + stringified_logs_to_append)
-            logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.write_to_log(log, term_absent=True) for log in logs_to_append]
+            call = AppendEntriesCall.from_message(string_operation)
+            [key_value_store.write_to_log(log, term_absent=True) for log in call.entries]
             print("State machine after appending: " + str(key_value_store.data))
 
             response = "Append entries call successful!"
@@ -161,7 +167,14 @@ class Server:
 
                 if self.current_operation.split(" ")[0] in ["set", "delete"]:
                     key_value_store.write_to_log(string_operation, term_absent=True)
-                    broadcast(self, with_return_address(self, "append_entries ['" + self.current_operation + "']"))
+                    broadcast(self, with_return_address(
+                        self,
+                        AppendEntriesCall(
+                            previous_index=self.key_value_store.highest_index,
+                            previous_term=self.key_value_store.latest_term,
+                            entries=[self.current_operation]
+                        ).to_message()
+                    ))
 
                     while not self.current_operation_committed:
                         pass
