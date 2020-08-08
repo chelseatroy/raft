@@ -31,10 +31,43 @@ class KeyValueStore:
             log = f.read()
             f.close()
 
+            last_command = ''
             for command in log.split('\n'):
-                self.write_to_state_machine(command, term_absent=False, write=False)
+                if command != '':
+                    last_command = command
+                    self.write_to_state_machine(command, term_absent=False, write=False)
+
+            if last_command != '':
+                components = last_command.split(' ')
+
+                #increment the index from the last call
+                # so that the next log entry continues the count upward
+                self.highest_index = int(components[0])
+                self.latest_term = int(components[1])
 
         self.catch_up_successful = True
+
+    def logs_as_dict(self, path_to_logs=''):
+        as_dict = {}
+        if path_to_logs == '':
+            path_to_logs = "logs/" + self.server_name + "_log.txt"
+
+        if os.path.exists(path_to_logs):
+            f = open(path_to_logs, "r")
+            log = f.read()
+            f.close()
+
+            for command in log.split('\n'):
+                operands = command.split(" ")
+
+                as_dict[" ".join(operands[:2])] = " ".join(operands[2:])
+
+        print("DICT: " + str(as_dict))
+        return as_dict
+
+    def previous_command(self, previous_index, previous_term):
+        return self.logs_as_dict().get(str(previous_index) + " " + str(previous_term))
+
 
     def get_latest_term(self):
         if not self.catch_up_successful:
@@ -52,7 +85,6 @@ class KeyValueStore:
 
         if term_absent:
             string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
-            self.highest_index = self.highest_index + 1
 
         operands = string_operation.split(" ")
         index, term, command, key, values = 0, 1, 2, 3, 4
@@ -115,8 +147,8 @@ class KeyValueStore:
 
         if operands[command] in ["set", "delete"]:
             if term_absent:
-                string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
                 self.highest_index = self.highest_index + 1
+                string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
 
             if path_to_logs == '':
                 path_to_logs = "logs/" + self.server_name + "_log.txt"

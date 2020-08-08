@@ -137,10 +137,19 @@ class Server:
         if string_operation.split(" ")[0] == "append_entries":
             # followers do this to update their logs.
             call = AppendEntriesCall.from_message(string_operation)
-            [key_value_store.write_to_log(log, term_absent=True) for log in call.entries]
-            print("State machine after appending: " + str(key_value_store.data))
 
-            response = "Append entries call successful!"
+            if self.key_value_store.previous_command(
+                call.previous_index,
+                call.previous_term
+            ) != None:
+                [key_value_store.write_to_log(log, term_absent=True) for log in call.entries]
+                print("State machine after appending: " + str(key_value_store.data))
+
+                response = "Append entries call successful!"
+            else:
+                #TODO: Here is where we have to catch up the logs
+                response = "Append entries unsuccessful. Please send prior log."
+
         elif string_operation.split(" ")[0] == "commit_entries":
             # followers do this to update their logs.
             stringified_logs_to_append = string_operation.replace("commit_entries ", "")
@@ -170,7 +179,7 @@ class Server:
                     broadcast(self, with_return_address(
                         self,
                         AppendEntriesCall(
-                            previous_index=self.key_value_store.highest_index,
+                            previous_index=self.key_value_store.highest_index - 1, #because we incremented it to update our own logs
                             previous_term=self.key_value_store.latest_term,
                             entries=[self.current_operation]
                         ).to_message()
