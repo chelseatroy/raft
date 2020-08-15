@@ -142,7 +142,8 @@ class Server:
                 call.previous_index,
                 call.previous_term
             ) != None:
-                [key_value_store.write_to_log(log, term_absent=True) for log in call.entries]
+                key_value_store.remove_logs_after_index(call.previous_index)
+                [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
                 print("State machine after appending: " + str(key_value_store.data))
 
                 response = "Append entries call successful!"

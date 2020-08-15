@@ -49,6 +49,22 @@ class KeyValueStore:
 
         self.catch_up_successful = True
 
+    def remove_logs_after_index(self, index, path_to_logs=''):
+        if path_to_logs == '':
+            path_to_logs = "logs/" + self.server_name + "_log.txt"
+
+        if os.path.exists(path_to_logs):
+            f = open(path_to_logs, "r+")
+            log_list = f.readlines()
+
+            while '' in log_list:
+                log_list.remove('')
+            f.seek(0)
+            for line_to_keep in log_list[0:index]:
+                f.write(line_to_keep)
+            f.truncate()
+            f.close()
+
     def log_access_object(self, path_to_logs=''):
         as_dict = {}
         the_worst_array = []
@@ -64,7 +80,7 @@ class KeyValueStore:
                 if command != '':
                     operands = command.split(" ")
 
-                    as_dict[" ".join(operands[:2])] = " ".join(operands[2:])
+                    as_dict[" ".join(operands[:2])] = " ".join(operands)
                     the_worst_array.append(" ".join(operands[:2]))
 
         return LogDataAccessObject(array=the_worst_array, dict=as_dict)
@@ -148,7 +164,10 @@ class KeyValueStore:
             return ''
 
         operands = string_operation.split(" ")
-        command, key, values = 0, 1, 2
+        if term_absent:
+            command, key, values = 0, 1, 2
+        else:
+            index, term, command, key, values = 0, 1, 2, 3, 4
 
         if operands[command] in ["set", "delete"]:
             if term_absent:
