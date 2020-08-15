@@ -138,7 +138,7 @@ class Server:
             # followers do this to update their logs.
             call = AppendEntriesCall.from_message(string_operation)
 
-            if self.key_value_store.previous_command(
+            if self.key_value_store.command_at(
                 call.previous_index,
                 call.previous_term
             ) != None:
@@ -147,8 +147,43 @@ class Server:
 
                 response = "Append entries call successful!"
             else:
-                #TODO: Here is where we have to catch up the logs
-                response = "Append entries unsuccessful. Please send prior log."
+                response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
+        elif string_operation.split(" ")[0] == "append_entries_unsuccessful.":
+
+            response_components = string_operation.split(" ")
+            max_index = len(response_components)
+
+            latest_tried_index = int(response_components[max_index - 2])
+            latest_tried_term = int(response_components[max_index - 1])
+
+            log_position = self.key_value_store.log_access_object().ordered_logs.index(
+                str(latest_tried_index) + " " + str(latest_tried_term)
+            )
+
+            #TODO: if log_position < 1:
+                #if we are starting from scratch
+
+            ordered_logs = self.key_value_store.log_access_object().ordered_logs
+            term_indexed_logs = self.key_value_store.log_access_object().term_indexed_logs
+            new_key_to_try = ordered_logs[log_position - 1]
+
+            new_values_to_send = list(
+                map(
+                    lambda x: term_indexed_logs[x],
+                    ordered_logs[log_position:]
+                )
+            )
+
+            try_this_index = new_key_to_try.split(" ")[0]
+            try_this_term = new_key_to_try.split(" ")[1]
+
+            response = AppendEntriesCall(
+                previous_index=try_this_index,
+                previous_term=try_this_term,
+                entries=new_values_to_send
+            ).to_message()
+
+            #TODO: Does not yet erase any out of date stuff on the follower
 
         elif string_operation.split(" ")[0] == "commit_entries":
             # followers do this to update their logs.
@@ -189,6 +224,7 @@ class Server:
                         pass
 
                     send_pending = False
+                    #TODO: Something about this block closes the connection
                 else:
                     response = key_value_store.read(self.current_operation)
             else:

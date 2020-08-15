@@ -2,6 +2,8 @@ import threading
 import time
 import os
 
+from src.log_data_access_object import LogDataAccessObject
+
 class KeyValueStore:
     client_lock = threading.Lock()
 
@@ -47,8 +49,9 @@ class KeyValueStore:
 
         self.catch_up_successful = True
 
-    def logs_as_dict(self, path_to_logs=''):
+    def log_access_object(self, path_to_logs=''):
         as_dict = {}
+        the_worst_array = []
         if path_to_logs == '':
             path_to_logs = "logs/" + self.server_name + "_log.txt"
 
@@ -58,15 +61,17 @@ class KeyValueStore:
             f.close()
 
             for command in log.split('\n'):
-                operands = command.split(" ")
+                if command != '':
+                    operands = command.split(" ")
 
-                as_dict[" ".join(operands[:2])] = " ".join(operands[2:])
+                    as_dict[" ".join(operands[:2])] = " ".join(operands[2:])
+                    the_worst_array.append(" ".join(operands[:2]))
 
-        print("DICT: " + str(as_dict))
-        return as_dict
+        return LogDataAccessObject(array=the_worst_array, dict=as_dict)
 
-    def previous_command(self, previous_index, previous_term):
-        return self.logs_as_dict().get(str(previous_index) + " " + str(previous_term))
+    def command_at(self, previous_index, previous_term):
+        return self.log_access_object().term_indexed_logs.\
+            get(str(previous_index) + " " + str(previous_term))
 
 
     def get_latest_term(self):
