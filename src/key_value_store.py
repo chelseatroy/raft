@@ -41,7 +41,7 @@ class KeyValueStore:
             for command in all_lines:
                 if command != '':
                     last_command = command
-                    self.write_to_state_machine(command, term_absent=False, write=False)
+                    self.write_to_state_machine(command, term_absent=False)
 
             if last_command != '':
                 components = last_command.split(' ')
@@ -102,7 +102,7 @@ class KeyValueStore:
         return self.latest_term
 
 
-    def write_to_state_machine(self, string_operation, term_absent, write=True, path_to_logs=''):
+    def write_to_state_machine(self, string_operation, term_absent, path_to_logs=''):
         print("Writing to state machine: " + string_operation)
 
         if len(string_operation) == 0:
@@ -123,14 +123,10 @@ class KeyValueStore:
                 value = " ".join(operands[values:])
 
                 self.log.append(string_operation)
-                if write:
-                    self.write_to_log(string_operation, term_absent=False, path_to_logs=path_to_logs)
                 self.set(operands[key], value)
                 response = f"key {operands[key]} set to {value}"
             elif operands[command] == "delete":
                 self.log.append(string_operation)
-                if write:
-                    self.write_to_log(string_operation, term_absent=False, path_to_logs=path_to_logs)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
             else:

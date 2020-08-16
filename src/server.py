@@ -94,7 +94,7 @@ class Server:
         if trues >= falses:
             print("Committing entry: " + self.current_operation)
             self.current_operation_committed = True
-            self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True, write=False)
+            self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True)
             broadcast(self, with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
 
             self.current_operation_committed = False
@@ -189,7 +189,7 @@ class Server:
             stringified_logs_to_append = string_operation.replace("commit_entries ", "")
             print("Preparing to commit: " + stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.write_to_state_machine(command, term_absent=True, write=False) for command in logs_to_append]
+            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
 
             response = "Commit entries call successful!"
             print("State machine after committing: " + str(key_value_store.data))

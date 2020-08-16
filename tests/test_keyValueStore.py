@@ -68,7 +68,7 @@ class TestKeyValueStore():
         self.clean_up_file(TEST_LOG_PATH)
         kvs = KeyValueStore(server_name="DorianGray")
 
-        kvs.write_to_state_machine("set Sibyl cruelty", term_absent=True, write=True, path_to_logs=TEST_LOG_PATH)
+        kvs.write_to_state_machine("set Sibyl cruelty", term_absent=True, path_to_logs=TEST_LOG_PATH)
 
         self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
@@ -79,7 +79,7 @@ class TestKeyValueStore():
         kvs.write_to_log(string_operation="0 set Sibyl cruelty", path_to_logs=TEST_LOG_PATH)
         assert not kvs.get("Sibyl")
 
-        kvs.write_to_state_machine("0 set Sibyl cruelty", term_absent=False, write=False, path_to_logs=TEST_LOG_PATH)
+        kvs.write_to_state_machine("0 set Sibyl cruelty", term_absent=False, path_to_logs=TEST_LOG_PATH)
 
         self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
@@ -89,7 +89,7 @@ class TestKeyValueStore():
         kvs = KeyValueStore(server_name="DorianGray")
         assert not kvs.get("Sibyl")
 
-        kvs.write_to_state_machine("0 set Sibyl cruelty", term_absent=False, write=True, path_to_logs=TEST_LOG_PATH)
+        kvs.write_to_state_machine("0 set Sibyl cruelty", term_absent=False, path_to_logs=TEST_LOG_PATH)
 
         self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
         assert kvs.get("Sibyl") == "cruelty"
