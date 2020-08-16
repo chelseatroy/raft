@@ -189,7 +189,7 @@ class Server:
             stringified_logs_to_append = string_operation.replace("commit_entries ", "")
             print("Preparing to commit: " + stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
+            [key_value_store.write_to_state_machine(command, term_absent=True, write=False) for command in logs_to_append]
 
             response = "Commit entries call successful!"
             print("State machine after committing: " + str(key_value_store.data))
