@@ -184,8 +184,6 @@ class Server:
                 entries=new_values_to_send
             ).to_message()
 
-            #TODO: Does not yet erase any out of date stuff on the follower
-
         elif string_operation.split(" ")[0] == "commit_entries":
             # followers do this to update their logs.
             stringified_logs_to_append = string_operation.replace("commit_entries ", "")

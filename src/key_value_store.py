@@ -1,5 +1,4 @@
 import threading
-import time
 import os
 
 from src.log_data_access_object import LogDataAccessObject
@@ -13,7 +12,7 @@ class KeyValueStore:
         self.log = []
         self.catch_up_successful = False
         self.latest_term = 0
-        self.highest_index = 0
+        self.highest_index = 1
 
     def get(self, key):
         return self.data.get(key, '')
@@ -29,12 +28,17 @@ class KeyValueStore:
             path_to_logs = "logs/" + self.server_name + "_log.txt"
 
         if os.path.exists(path_to_logs):
-            f = open(path_to_logs, "r")
-            log = f.read()
+            f = open(path_to_logs, "r+")
+
+            all_lines = f.read().splitlines()
+            non_empty_lines = list(filter(lambda x: x != '', all_lines))
+            if len(non_empty_lines) == 0:
+                f.seek(0)
+                f.write("0 0 set  unreachable\n")
             f.close()
 
             last_command = ''
-            for command in log.split('\n'):
+            for command in all_lines:
                 if command != '':
                     last_command = command
                     self.write_to_state_machine(command, term_absent=False, write=False)
@@ -60,7 +64,7 @@ class KeyValueStore:
             while '' in log_list:
                 log_list.remove('')
             f.seek(0)
-            for line_to_keep in log_list[0:index]:
+            for line_to_keep in log_list[0:index + 1]:
                 f.write(line_to_keep)
             f.truncate()
             f.close()
@@ -173,6 +177,9 @@ class KeyValueStore:
             if term_absent:
                 self.highest_index = self.highest_index + 1
                 string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
+            else:
+                self.highest_index = index + 1
+                self.latest_term = term
 
             if path_to_logs == '':
                 path_to_logs = "logs/" + self.server_name + "_log.txt"
