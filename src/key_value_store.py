@@ -11,7 +11,8 @@ class KeyValueStore:
         self.data = {}
         self.log = []
         self.catch_up_successful = False
-        self.latest_term = 0
+        self.current_term = 0
+        self.latest_term_in_logs = 0
         self.highest_index = 1
 
     def get(self, key):
@@ -23,7 +24,7 @@ class KeyValueStore:
     def delete(self, key):
         del self.data[key]
 
-    def catch_up(self, path_to_logs=''):
+    def catch_up(self, path_to_logs='', new_leader=False):
         if path_to_logs == '':
             path_to_logs = "logs/" + self.server_name + "_log.txt"
 
@@ -49,7 +50,13 @@ class KeyValueStore:
                 #increment the index from the last call
                 # so that the next log entry continues the count upward
                 self.highest_index = int(components[0])
-                self.latest_term = int(components[1])
+                self.latest_term_in_logs = int(components[1])
+
+                if not new_leader:
+                    self.current_term = self.latest_term_in_logs
+
+            print("Latest term in logs: " + str(self.latest_term_in_logs))
+            print("Current term: " + str(self.current_term))
 
         self.catch_up_successful = True
 
@@ -99,7 +106,7 @@ class KeyValueStore:
             print("This store isn't caught up, so it doesn't know what term we're in!")
             return
 
-        return self.latest_term
+        return self.latest_term_in_logs
 
 
     def write_to_state_machine(self, string_operation, term_absent, path_to_logs=''):
@@ -109,7 +116,7 @@ class KeyValueStore:
             return
 
         if term_absent:
-            string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
+            string_operation = str(self.highest_index) + " " + str(self.latest_term_in_logs) + " " + string_operation
 
         operands = string_operation.split(" ")
         index, term, command, key, values = 0, 1, 2, 3, 4
@@ -117,7 +124,7 @@ class KeyValueStore:
         response = "Sorry, I don't understand that command."
 
         with self.client_lock:
-            self.latest_term = int(operands[term])
+            self.latest_term_in_logs = int(operands[term])
 
             if operands[command] == "set":
                 value = " ".join(operands[values:])
@@ -171,17 +178,19 @@ class KeyValueStore:
 
         if operands[command] in ["set", "delete"]:
             if term_absent:
-                self.highest_index = self.highest_index + 1
-                string_operation = str(self.highest_index) + " " + str(self.latest_term) + " " + string_operation
+                self.highest_index += 1
+                string_operation = str(self.highest_index) + " " + str(self.current_term) + " " + string_operation
             else:
                 self.highest_index = index + 1
-                self.latest_term = term
+                self.latest_term_in_logs = term
 
             if path_to_logs == '':
                 path_to_logs = "logs/" + self.server_name + "_log.txt"
             f = open(path_to_logs, "a+")
             f.write(string_operation + '\n')
             f.close()
+
+            self.latest_term_in_logs = self.current_term
 
             return string_operation
 
