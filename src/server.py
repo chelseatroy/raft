@@ -1,6 +1,7 @@
 import threading
 from socket import *
 import time
+import random
 
 from src.message_pass import *
 
@@ -24,8 +25,18 @@ class Server:
         self.current_operation = ''
         self.current_operation_committed = False
 
+        self.candidate = False
+        self.timeout = float(random.randint(5, 30))
+        self.election_countdown = threading.Timer(self.timeout, self.start_election)
+        self.election_countdown.start()
+
         for server_name in other_server_names(name):
             self.followers_with_update_status[server_name] = False
+
+    def start_election(self):
+        if not self.leader:
+            print("THE LEADER IS DOWN LETS START AN ELECTION BOIIIII")
+
 
     def send(self, message, to_server_address):
         print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
@@ -135,7 +146,10 @@ class Server:
         response = ''
 
         if string_operation.split(" ")[0] == "append_entries":
-            # followers do this to update their logs.
+            self.election_countdown.cancel()
+            self.election_countdown = threading.Timer(self.timeout, self.start_election)
+            self.election_countdown.start()
+
             call = AppendEntriesCall.from_message(string_operation)
 
             if self.key_value_store.command_at(
