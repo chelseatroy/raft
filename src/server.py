@@ -19,7 +19,10 @@ class Server:
         self.name = name
         self.key_value_store = KeyValueStore(server_name=name)
         self.key_value_store.catch_up()
+
         self.leader = leader
+        self.heartbeat_timer = None
+
         self.followers_with_update_status = {}
         self.current_operation = ''
         self.current_operation_committed = False
@@ -103,12 +106,14 @@ class Server:
             broadcast(self, with_return_address(
                 self,
                 AppendEntriesCall(
+                    in_term=self.key_value_store.current_term,
                     previous_index=self.key_value_store.highest_index,
                     previous_term=self.key_value_store.latest_term_in_logs,
                     entries=[]
                 ).to_message()
             ))
-            threading.Timer(5.0, self.prove_aliveness).start()
+            self.heartbeat_timer = threading.Timer(5.0, self.prove_aliveness)
+            self.heartbeat_timer.start()
 
     def mark_updated(self, server_name):
         self.followers_with_update_status[server_name] = True
@@ -174,23 +179,31 @@ class Server:
         response = ''
 
         if string_operation.split(" ")[0] == "append_entries":
-            self.election_countdown.cancel()
-            self.election_countdown = threading.Timer(self.timeout, self.start_election)
-            self.election_countdown.start()
-
             call = AppendEntriesCall.from_message(string_operation)
 
-            if self.key_value_store.command_at(
-                call.previous_index,
-                call.previous_term
-            ) != None:
-                key_value_store.remove_logs_after_index(call.previous_index)
-                [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
-                print("State machine after appending: " + str(key_value_store.data))
-
-                response = "Append entries call successful!"
+            if call.in_term < self.key_value_store.current_term:
+                response = "Your term is out of date. You can't be the leader."
             else:
-                response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
+                self.election_countdown.cancel()
+                self.election_countdown = threading.Timer(self.timeout, self.start_election)
+                self.election_countdown.start()
+
+                self.leader = False
+                if self.heartbeat_timer:
+                    self.heartbeat_timer.cancel()
+                self.key_value_store.current_term = call.in_term
+
+                if self.key_value_store.command_at(
+                    call.previous_index,
+                    call.previous_term
+                ) != None:
+                    key_value_store.remove_logs_after_index(call.previous_index)
+                    [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
+                    print("State machine after appending: " + str(key_value_store.data))
+
+                    response = "Append entries call successful!"
+                else:
+                    response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
         elif string_operation.split(" ")[0] == "append_entries_unsuccessful.":
 
             response_components = string_operation.split(" ")
@@ -218,6 +231,7 @@ class Server:
             try_this_term = new_key_to_try.split(" ")[1]
 
             response = AppendEntriesCall(
+                in_term=self.key_value_store.current_term,
                 previous_index=try_this_index,
                 previous_term=try_this_term,
                 entries=new_values_to_send
@@ -238,7 +252,8 @@ class Server:
             "Broadcasting to other servers to catch up their logs.",
             "Commit entries call successful!",
             "Sorry, already voted.",
-            "I am not the leader. Please leave me alone."
+            "I am not the leader. Please leave me alone.",
+            "Your term is out of date. You can't be the leader."
         ]:
             send_pending = False
         elif string_operation.split(" ")[0] == "can_I_count_on_your_vote_in_term":
@@ -266,6 +281,7 @@ class Server:
                     broadcast(self, with_return_address(
                         self,
                         AppendEntriesCall(
+                            in_term=self.key_value_store.current_term,
                             previous_index=self.key_value_store.highest_index - 1, #because we incremented it to update our own logs
                             previous_term=self.key_value_store.latest_term_in_logs,
                             entries=[string_operation_with_term]
