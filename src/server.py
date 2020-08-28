@@ -27,7 +27,6 @@ class Server:
         self.current_operation = ''
         self.current_operation_committed = False
 
-        self.candidate = False
         self.timeout = float(random.randint(10, 18))
         self.election_countdown = threading.Timer(self.timeout, self.start_election)
         print("Server started with timeout of : " + str(self.timeout))
@@ -46,7 +45,10 @@ class Server:
     def start_election(self):
         if not self.leader:
             self.key_value_store.current_term += 1
-            self.candidate = True
+            self.timeout = float(random.randint(10, 18))
+            self.election_countdown = threading.Timer(self.timeout, self.start_election)
+            print("Server reset election timeout to : " + str(self.timeout))
+            self.election_countdown.start()
 
             self.voted_for_me[self.name] = True
             broadcast(self, with_return_address(
