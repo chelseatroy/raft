@@ -15,6 +15,8 @@ class KeyValueStore:
         self.latest_term_in_logs = 0
         self.highest_index = 1
 
+        self.log_recently_changed = False
+
     def get(self, key):
         return self.data.get(key, '')
 
@@ -59,6 +61,8 @@ class KeyValueStore:
             print("Current term: " + str(self.current_term))
 
         self.catch_up_successful = True
+        self.log_recently_changed = True
+
 
     def remove_logs_after_index(self, index, path_to_logs=''):
         if path_to_logs == '':
@@ -76,25 +80,34 @@ class KeyValueStore:
             f.truncate()
             f.close()
 
+            self.log_recently_changed = True
+
+
     def log_access_object(self, path_to_logs=''):
-        as_dict = {}
-        the_worst_array = []
-        if path_to_logs == '':
-            path_to_logs = "logs/" + self.server_name + "_log.txt"
+        if not self.log_recently_changed:
+            pass
+        else:
+            as_dict = {}
+            the_worst_array = []
+            if path_to_logs == '':
+                path_to_logs = "logs/" + self.server_name + "_log.txt"
 
-        if os.path.exists(path_to_logs):
-            f = open(path_to_logs, "r")
-            log = f.read()
-            f.close()
+            if os.path.exists(path_to_logs):
+                f = open(path_to_logs, "r")
+                log = f.read()
+                f.close()
 
-            for command in log.split('\n'):
-                if command != '':
-                    operands = command.split(" ")
+                for command in log.split('\n'):
+                    if command != '':
+                        operands = command.split(" ")
 
-                    as_dict[" ".join(operands[:2])] = " ".join(operands)
-                    the_worst_array.append(" ".join(operands[:2]))
+                        as_dict[" ".join(operands[:2])] = " ".join(operands)
+                        the_worst_array.append(" ".join(operands[:2]))
 
-        return LogDataAccessObject(array=the_worst_array, dict=as_dict)
+            self.cached_log_access_object = LogDataAccessObject(array=the_worst_array, dict=as_dict)
+            self.log_recently_changed = False
+
+        return self.cached_log_access_object
 
     def command_at(self, previous_index, previous_term):
         return self.log_access_object().term_indexed_logs.\
@@ -166,6 +179,7 @@ class KeyValueStore:
     #used in leader server when client sends a command
     def write_to_log(self, string_operation, term_absent, path_to_logs=''):
         print("Writing to log: " + string_operation)
+        self.log_recently_changed = True
 
         if len(string_operation) == 0:
             return ''
