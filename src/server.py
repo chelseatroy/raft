@@ -293,8 +293,7 @@ class Server:
                     while not self.current_operation_committed:
                         pass
 
-                    send_pending = False
-                    #TODO: Something about this block closes the connection
+                    response = "Aye aye, cap'n!"
                 else:
                     response = key_value_store.read(self.current_operation)
             else:
