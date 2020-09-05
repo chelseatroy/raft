@@ -33,7 +33,6 @@ class Server:
         print("Server started with timeout of : " + str(self.timeout))
         self.election_countdown.start()
         self.voted_for_me = {}
-        self.voted_this_term = False
 
         for server_name in other_server_names(name):
             self.followers_with_update_status[server_name] = False
@@ -269,19 +268,12 @@ class Server:
             if request_vote_call.for_term > self.key_value_store.current_term \
                 and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
                 and request_vote_call.latest_log_index >= self.key_value_store.highest_index:
-                if self.voted_this_term:
-                    response = "Sorry, already voted."
-                else:
-                    self.voted_this_term = True
                     response = "You can count on my vote!"
             else:
-                response = "Your log is out of date. I'm not voting for you! \n" \
-                + "comparing candidate term " + str(request_vote_call.for_term) + " to mine " + str(self.key_value_store.current_term) + " \n" \
-                + "comparing candidate log index " + str(request_vote_call.latest_log_term) + " to mine " + str(self.key_value_store.latest_term_in_logs) + " \n" \
-                + "comparing candidate log term " + str(request_vote_call.latest_log_index) + " to mine " + str(self.key_value_store.highest_index) + " \n"
-
+                response = "Your log is out of date. I'm not voting for you!"
         elif string_operation == "You can count on my vote!":
             self.mark_voted(server_name)
+            self.key_value_store.current_term += 1
             send_pending = False
         elif string_operation == "Append entries call successful!":
             if self.leader:
