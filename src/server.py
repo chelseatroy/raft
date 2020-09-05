@@ -8,6 +8,7 @@ from src.message_pass import *
 from src.key_value_store import KeyValueStore
 from src.parsing import address_of, with_return_address, broadcast, return_address_and_message
 from src.append_entries_call import AppendEntriesCall
+from src.request_vote_call import RequestVoteCall
 
 from src.config import other_server_names, server_nodes, destination_addresses
 import ast
@@ -53,7 +54,11 @@ class Server:
             self.voted_for_me[self.name] = True
             broadcast(self, with_return_address(
                 self,
-                "can_I_count_on_your_vote_in_term " + str(self.key_value_store.current_term)
+                RequestVoteCall(
+                    for_term=str(self.key_value_store.current_term),
+                    latest_log_index=str(self.key_value_store.highest_index),
+                    latest_log_term=str(self.key_value_store.latest_term_in_logs)
+                ).to_message()
             ))
 
     def send(self, message, to_server_address):
@@ -255,17 +260,26 @@ class Server:
             "Commit entries call successful!",
             "Sorry, already voted.",
             "I am not the leader. Please leave me alone.",
-            "Your term is out of date. You can't be the leader."
+            "Your term is out of date. You can't be the leader.",
+            "Your log is out of date. I'm not voting for you!"
         ]:
             send_pending = False
         elif string_operation.split(" ")[0] == "can_I_count_on_your_vote_in_term":
-            interlocutors_term = int(string_operation.split(" ")[1])
-            if interlocutors_term > self.key_value_store.current_term \
-                    and not self.voted_this_term:
+            request_vote_call = RequestVoteCall.from_message(string_operation)
+            if request_vote_call.for_term > self.key_value_store.current_term \
+                and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
+                and request_vote_call.latest_log_index >= self.key_value_store.highest_index:
+                if self.voted_this_term:
+                    response = "Sorry, already voted."
+                else:
                     self.voted_this_term = True
                     response = "You can count on my vote!"
             else:
-                response = "Sorry, already voted."
+                response = "Your log is out of date. I'm not voting for you! \n" \
+                + "comparing candidate term " + str(request_vote_call.for_term) + " to mine " + str(self.key_value_store.current_term) + " \n" \
+                + "comparing candidate log index " + str(request_vote_call.latest_log_term) + " to mine " + str(self.key_value_store.latest_term_in_logs) + " \n" \
+                + "comparing candidate log term " + str(request_vote_call.latest_log_index) + " to mine " + str(self.key_value_store.highest_index) + " \n"
+
         elif string_operation == "You can count on my vote!":
             self.mark_voted(server_name)
             send_pending = False
