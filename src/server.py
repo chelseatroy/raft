@@ -15,14 +15,15 @@ import ast
 
 
 class Server:
-    def __init__(self, name, port=10000, leader=False):
+    def __init__(self, name, port=10000, voting=True):
         self.port = port
         self.name = name
         self.key_value_store = KeyValueStore(server_name=name)
         self.key_value_store.catch_up()
         self.latest_leader = "yet unelected"
 
-        self.leader = leader
+        self.leader = False
+        self.voting = voting
         self.heartbeat_timer = None
 
         self.followers_with_update_status = {}
@@ -210,6 +211,7 @@ class Server:
                     [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
                     print("State machine after appending: " + str(key_value_store.data))
 
+                    self.voting = True
                     response = "Append entries call successful!"
                 else:
                     response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
@@ -255,16 +257,6 @@ class Server:
 
             response = "Commit entries call successful!"
             print("State machine after committing: " + str(key_value_store.data))
-        elif string_operation in [
-            "Caught up. Thanks!",
-            "Sorry, I don't understand that command.",
-            "Broadcasting to other servers to catch up their logs.",
-            "Commit entries call successful!",
-            "Sorry, already voted.",
-            "Your term is out of date. You can't be the leader.",
-            "Your log is out of date. I'm not voting for you!"
-        ] or string_operation.startswith("I am not the leader"):
-            send_pending = False
         elif string_operation.split(" ")[0] == "can_I_count_on_your_vote_in_term":
             request_vote_call = RequestVoteCall.from_message(string_operation)
             if request_vote_call.for_term > self.key_value_store.current_term \
@@ -280,6 +272,16 @@ class Server:
         elif string_operation == "Append entries call successful!":
             if self.leader:
                 self.mark_updated(server_name)
+            send_pending = False
+        elif string_operation in [
+            "Caught up. Thanks!",
+            "Sorry, I don't understand that command.",
+            "Broadcasting to other servers to catch up their logs.",
+            "Commit entries call successful!",
+            "Sorry, already voted.",
+            "Your term is out of date. You can't be the leader.",
+            "Your log is out of date. I'm not voting for you!"
+        ] or string_operation.startswith("I am not the leader"):
             send_pending = False
         else:
             if self.leader:
