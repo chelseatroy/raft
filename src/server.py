@@ -16,7 +16,6 @@ class Server:
     def __init__(self, name, port=10000, voting=True):
         self.port = port
         self.name = name
-        self.server_cluster = {}
         self.key_value_store = KeyValueStore(server_name=name)
         self.key_value_store.catch_up()
         self.latest_leader = "yet unelected"
@@ -113,7 +112,7 @@ class Server:
     def prove_aliveness(self):
         print("Sending Heartbeat!")
         if self.leader:
-            broadcast(self, with_return_address(
+            self.broadcast(self, self.with_return_address(
                 self,
                 AppendEntriesCall(
                     in_term=self.key_value_store.current_term,
@@ -134,10 +133,10 @@ class Server:
             print("Committing entry: " + self.current_operation)
             self.current_operation_committed = True
             self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True)
-            broadcast(self, with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
+            self.broadcast(self, self.with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
 
             self.current_operation_committed = False
-            for server_name in other_server_names(self.name):
+            for server_name in self.key_value_store.other_server_names(self.name):
                 self.followers_with_update_status[server_name] = False
 
     def mark_voted(self, server_name):
@@ -152,7 +151,7 @@ class Server:
 
             self.prove_aliveness()
 
-            for server_name in other_server_names(self.name):
+            for server_name in self.key_value_store.other_server_names(self.name):
                 self.voted_for_me[server_name] = False
             self.voted_for_me[self.name] = False
 
@@ -189,7 +188,7 @@ class Server:
         return server.name + "@" + response
 
     def port_of(self, server_name):
-        return self.server_cluster[server_name]
+        return self.key_value_store.server_cluster[server_name]
 
     def return_address_and_message(self, string_request):
         address_with_message = string_request.split("@")
@@ -304,10 +303,10 @@ class Server:
             if self.leader:
                 self.current_operation = string_operation
 
-                if self.current_operation.split(" ")[0] in ["set", "delete"]:
+                if self.current_operation.split(" ")[0] in ["set", "delete", "register", "deregister"]:
                     string_operation_with_term = key_value_store.write_to_log(string_operation, term_absent=True)
 
-                    broadcast(self, with_return_address(
+                    self.broadcast(self, with_return_address(
                         self,
                         AppendEntriesCall(
                             in_term=self.key_value_store.current_term,

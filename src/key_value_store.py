@@ -123,7 +123,7 @@ class KeyValueStore:
         return self.latest_term_in_logs
 
 
-    def write_to_state_machine(self, string_operation, term_absent, path_to_logs=''):
+    def write_to_state_machine(self, string_operation, term_absent):
         print("Writing to state machine: " + string_operation)
 
         if len(string_operation) == 0:
@@ -197,7 +197,7 @@ class KeyValueStore:
         else:
             index, term, command, key, values = 0, 1, 2, 3, 4
 
-        if operands[command] in ["set", "delete"]:
+        if operands[command] in ["set", "delete", "register", "deregister"]:
             if term_absent:
                 self.highest_index += 1
                 string_operation = str(self.highest_index) + " " + str(self.current_term) + " " + string_operation
