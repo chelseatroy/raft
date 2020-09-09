@@ -150,12 +150,6 @@ class KeyValueStore:
                 self.log.append(string_operation)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
-            elif operands[command] == "register":
-                self.server_cluster[operands[key]] = operands[values]
-                print("CURRENT SERVERS: " + str(self.server_cluster))
-            elif operands[command] == "deregister":
-                self.server_cluster.pop(operands[key])
-                print("CURRENT SERVERS: " + str(self.server_cluster))
             else:
                 pass
 
@@ -210,6 +204,13 @@ class KeyValueStore:
             f = open(path_to_logs, "a+")
             f.write(string_operation + '\n')
             f.close()
+
+            if operands[command] == "register":
+                self.server_cluster[operands[key]] = operands[values]
+                print("CURRENT SERVERS: " + str(self.server_cluster))
+            elif operands[command] == "deregister":
+                self.server_cluster.pop(operands[key])
+                print("CURRENT SERVERS: " + str(self.server_cluster))
 
             self.latest_term_in_logs = self.current_term
 
