@@ -10,6 +10,7 @@ class KeyValueStore:
         self.server_name = server_name
         self.data = {}
         self.server_cluster = {}
+        self.voted_for_me = {}
         self.log = []
         self.catch_up_successful = False
         self.current_term = 0
@@ -45,6 +46,7 @@ class KeyValueStore:
             for command in all_lines:
                 if command != '':
                     last_command = command
+                    self.update_server_cluster(command)
                     self.write_to_state_machine(command, term_absent=False)
 
             if last_command != '':
@@ -205,18 +207,29 @@ class KeyValueStore:
             f.write(string_operation + '\n')
             f.close()
 
-            if operands[command] == "register":
-                self.server_cluster[operands[key]] = operands[values]
-                print("CURRENT SERVERS: " + str(self.server_cluster))
-            elif operands[command] == "deregister":
-                self.server_cluster.pop(operands[key])
-                print("CURRENT SERVERS: " + str(self.server_cluster))
-
+            self.update_server_cluster(command)
             self.latest_term_in_logs = self.current_term
 
             return string_operation
 
         return ''
+
+    def update_server_cluster(self, command):
+        operands = command.split(" ")
+        index, term, command, key, values = 0, 1, 2, 3, 4
+
+        if operands[command] == "register":
+            if operands[values] == "voting":
+                self.voted_for_me[operands[key]] = False
+                print("CURRENT VOTING SERVERS: " + str(self.voted_for_me))
+            else:
+                self.server_cluster[operands[key]] = operands[values]
+            print("CURRENT SERVERS: " + str(self.server_cluster))
+        elif operands[command] == "deregister":
+            self.server_cluster.pop(operands[key])
+            self.voted_for_me.pop(operands[key], None) #Skips KeyError in case a non-voting server is being removed
+            print("CURRENT SERVERS: " + str(self.server_cluster))
+            print("CURRENT VOTING SERVERS: " + str(self.voted_for_me))
 
     def destination_addresses(self, server_name):
         other_servers = {k: v for (k, v) in self.server_cluster.items() if k != server_name}

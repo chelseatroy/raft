@@ -32,14 +32,11 @@ class Server:
         self.election_countdown = threading.Timer(self.timeout, self.start_election)
         print("Server started with timeout of : " + str(self.timeout))
         self.election_countdown.start()
-        self.voted_for_me = {}
 
         for server_name in self.key_value_store.other_server_names(name):
             self.followers_with_update_status[server_name] = False
 
-        for server_name in self.key_value_store.other_server_names(name):
-            self.voted_for_me[server_name] = False
-        self.voted_for_me[self.name] = False
+        self.key_value_store.voted_for_me[self.name] = False
 
 
     def start_election(self):
@@ -50,7 +47,7 @@ class Server:
             print("Server reset election timeout to : " + str(self.timeout))
             self.election_countdown.start()
 
-            self.voted_for_me[self.name] = True
+            self.key_value_store.voted_for_me[self.name] = True
             self.broadcast(self, self.with_return_address(
                 self,
                 RequestVoteCall(
@@ -135,10 +132,10 @@ class Server:
                 self.followers_with_update_status[server_name] = False
 
     def mark_voted(self, server_name):
-        self.voted_for_me[server_name] = True
+        self.key_value_store.voted_for_me[server_name] = True
 
-        trues = len(list(filter(lambda x: x is True, self.voted_for_me.values())))
-        falses = len(list(filter(lambda x: x is False, self.voted_for_me.values())))
+        trues = len(list(filter(lambda x: x is True, self.key_value_store.voted_for_me.values())))
+        falses = len(list(filter(lambda x: x is False, self.key_value_store.voted_for_me.values())))
         if trues >= falses:
             print("I win the election for term " + str(self.key_value_store.current_term) + "!")
             self.key_value_store.catch_up(new_leader=True)
@@ -147,8 +144,8 @@ class Server:
             self.prove_aliveness()
 
             for server_name in self.key_value_store.other_server_names(self.name):
-                self.voted_for_me[server_name] = False
-            self.voted_for_me[self.name] = False
+                self.key_value_store.voted_for_me[server_name] = False
+            self.key_value_store.voted_for_me[self.name] = False
 
         # Thinks it's not used but actually it is in a thread above
     def manage_messaging(self, connection, kvs):
@@ -221,9 +218,16 @@ class Server:
                     print("State machine after appending: " + str(key_value_store.data))
 
                     self.voting = True
+                    print("I GET TO VOTE NOW AAAAAHAHAHAHAHA")
+                    self.broadcast(self, self.with_return_address(
+                        self,
+                        "I can vote now!"
+                    ))
                     response = "Append entries call successful!"
                 else:
                     response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
+        elif string_operation == "I can vote now!":
+            key_value_store.write_to_log(f"register {server_name} voting", term_absent=False)
         elif string_operation.split(" ")[0] == "append_entries_unsuccessful.":
 
             response_components = string_operation.split(" ")
@@ -270,7 +274,8 @@ class Server:
             request_vote_call = RequestVoteCall.from_message(string_operation)
             if request_vote_call.for_term > self.key_value_store.current_term \
                 and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
-                and request_vote_call.latest_log_index >= self.key_value_store.highest_index:
+                and request_vote_call.latest_log_index >= self.key_value_store.highest_index \
+                and self.voting:
                     response = "You can count on my vote!"
             else:
                 response = "Your log is out of date. I'm not voting for you!"
