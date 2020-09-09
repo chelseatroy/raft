@@ -6,11 +6,9 @@ import random
 from src.message_pass import *
 
 from src.key_value_store import KeyValueStore
-from src.parsing import address_of, with_return_address, broadcast, return_address_and_message
 from src.append_entries_call import AppendEntriesCall
 from src.request_vote_call import RequestVoteCall
 
-from src.config import other_server_names, server_nodes, destination_addresses
 import ast
 
 
@@ -18,6 +16,7 @@ class Server:
     def __init__(self, name, port=10000, voting=True):
         self.port = port
         self.name = name
+        self.server_cluster = {}
         self.key_value_store = KeyValueStore(server_name=name)
         self.key_value_store.catch_up()
         self.latest_leader = "yet unelected"
@@ -36,10 +35,10 @@ class Server:
         self.election_countdown.start()
         self.voted_for_me = {}
 
-        for server_name in other_server_names(name):
+        for server_name in self.key_value_store.other_server_names(name):
             self.followers_with_update_status[server_name] = False
 
-        for server_name in other_server_names(name):
+        for server_name in self.key_value_store.other_server_names(name):
             self.voted_for_me[server_name] = False
         self.voted_for_me[self.name] = False
 
@@ -53,7 +52,7 @@ class Server:
             self.election_countdown.start()
 
             self.voted_for_me[self.name] = True
-            broadcast(self, with_return_address(
+            self.broadcast(self, self.with_return_address(
                 self,
                 RequestVoteCall(
                     for_term=str(self.key_value_store.current_term),
@@ -62,17 +61,19 @@ class Server:
                 ).to_message()
             ))
 
-    def send(self, message, to_server_address):
-        print(f"connecting to {to_server_address[0]} port {to_server_address[1]}")
+    def send(self, message, to_port):
+        print(f"connecting to port {to_port}")
+
+        to_address = ("localhost", int(to_port))
 
         peer_socket = socket(AF_INET, SOCK_STREAM)
 
         try:
-            peer_socket.connect(to_server_address)
+            peer_socket.connect(to_address)
             encoded_message = message.encode('utf-8')
 
             try:
-                print(f"sending {encoded_message} to {to_server_address}")
+                print(f"sending {encoded_message} to {to_port}")
                 send_message(peer_socket, encoded_message)
                 time.sleep(0.5)
                 peer_socket.close()
@@ -82,15 +83,16 @@ class Server:
         except OSError as e:
             print("Bad file descriptor, supposedly: " + str(e))
         except ConnectionRefusedError as e:
-            print(f"Ope, looks like {to_server_address[0]} port {to_server_address[1]} isn't up right now")
+            print(f"Ope, looks like port {to_port} isn't up right now")
 
 
     def start(self):
         server_address = ('localhost', self.port)
 
-        f = open("logs/server_registry.txt", "a")
-        f.write(self.name + " localhost " + str(self.port) + '\n')
-        f.close()
+        #TODO: Make the "register me" call here instead
+        # f = open("logs/server_registry.txt", "a")
+        # f.write(self.name + " localhost " + str(self.port) + '\n')
+        # f.close()
 
         print("starting up on " + str(server_address[0]) + " port " + str(server_address[1]))
 
@@ -169,7 +171,7 @@ class Server:
                     if destination == "client":
                         send_message(connection, response.encode('utf-8'))
                     else:
-                        self.send(response, to_server_address=address_of(destination))
+                        self.send(response, to_port=self.port_of(destination))
 
                 else:
                     print("no more data")
@@ -178,10 +180,25 @@ class Server:
         finally:
             connection.close()
 
+    def broadcast(self, server, message):
+        print("Broadcasting " + message)
+        for other_server_address in self.key_value_store.destination_addresses(server.name):
+            server.send(message, to_port=other_server_address)
+
+    def with_return_address(self, server, response):
+        return server.name + "@" + response
+
+    def port_of(self, server_name):
+        return self.server_cluster[server_name]
+
+    def return_address_and_message(self, string_request):
+        address_with_message = string_request.split("@")
+        return address_with_message[0], "@".join(address_with_message[1:])
+
     def respond(self, key_value_store, operation):
         send_pending = True
         string_request = operation.decode("utf-8")
-        server_name, string_operation = return_address_and_message(string_request)
+        server_name, string_operation = self.return_address_and_message(string_request)
         print("from " + server_name + ": received " + string_operation)
 
         response = ''
@@ -310,6 +327,6 @@ class Server:
                 response = "I am not the leader. The last leader I heard from is " + str(self.latest_leader) + "."
 
         if send_pending:
-            response = with_return_address(self, response)
+            response = self.with_return_address(self, response)
 
         return server_name, response

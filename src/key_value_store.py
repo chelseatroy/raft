@@ -9,6 +9,7 @@ class KeyValueStore:
     def __init__(self, server_name):
         self.server_name = server_name
         self.data = {}
+        self.server_cluster = {}
         self.log = []
         self.catch_up_successful = False
         self.current_term = 0
@@ -149,6 +150,12 @@ class KeyValueStore:
                 self.log.append(string_operation)
                 self.delete(operands[key])
                 response = f"key {key} deleted"
+            elif operands[command] == "register":
+                self.server_cluster[operands[key]] = operands[values]
+                print("CURRENT OTHER SERVERS: " + str(self.server_cluster))
+            elif operands[command] == "deregister":
+                self.server_cluster.pop(operands[key])
+                print("CURRENT OTHER SERVERS: " + str(self.server_cluster))
             else:
                 pass
 
@@ -209,4 +216,16 @@ class KeyValueStore:
             return string_operation
 
         return ''
+
+    def destination_addresses(self, server_name):
+        other_servers = {k: v for (k, v) in self.server_cluster.items() if k != server_name}
+        return list(other_servers.values())
+
+    def other_server_names(self, server_name):
+        other_servers = {k: v for (k, v) in self.server_cluster.items() if k != server_name}
+        return list(other_servers.keys())
+
+
+
+
 

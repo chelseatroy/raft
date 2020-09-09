@@ -13,10 +13,3 @@ def server_nodes(path_to_registry="logs/server_registry.txt"):
     return registry
 
 
-def destination_addresses(server_name):
-    other_servers = {k: v for (k, v) in server_nodes().items() if k != server_name}
-    return list(other_servers.values())
-
-def other_server_names(server_name):
-    other_servers = {k: v for (k, v) in server_nodes().items() if k != server_name}
-    return list(other_servers.keys())
