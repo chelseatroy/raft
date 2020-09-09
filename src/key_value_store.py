@@ -152,10 +152,10 @@ class KeyValueStore:
                 response = f"key {key} deleted"
             elif operands[command] == "register":
                 self.server_cluster[operands[key]] = operands[values]
-                print("CURRENT OTHER SERVERS: " + str(self.server_cluster))
+                print("CURRENT SERVERS: " + str(self.server_cluster))
             elif operands[command] == "deregister":
                 self.server_cluster.pop(operands[key])
-                print("CURRENT OTHER SERVERS: " + str(self.server_cluster))
+                print("CURRENT SERVERS: " + str(self.server_cluster))
             else:
                 pass
 

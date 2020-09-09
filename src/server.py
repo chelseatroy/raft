@@ -88,11 +88,6 @@ class Server:
     def start(self):
         server_address = ('localhost', self.port)
 
-        #TODO: Make the "register me" call here instead
-        # f = open("logs/server_registry.txt", "a")
-        # f.write(self.name + " localhost " + str(self.port) + '\n')
-        # f.close()
-
         print("starting up on " + str(server_address[0]) + " port " + str(server_address[1]))
 
         self.server_socket = socket(AF_INET, SOCK_STREAM)
@@ -162,15 +157,15 @@ class Server:
                 operation = receive_message(connection)
 
                 if operation:
-                    destination, response = self.respond(kvs, operation)
+                    destination_name, destination_port, response = self.respond(kvs, operation)
 
                     if response == '':
                         break
 
-                    if destination == "client":
+                    if destination_name == "client":
                         send_message(connection, response.encode('utf-8'))
                     else:
-                        self.send(response, to_port=self.port_of(destination))
+                        self.send(response, to_port=int(destination_port))
 
                 else:
                     print("no more data")
@@ -185,19 +180,17 @@ class Server:
             server.send(message, to_port=other_server_address)
 
     def with_return_address(self, server, response):
-        return server.name + "@" + response
-
-    def port_of(self, server_name):
-        return self.key_value_store.server_cluster[server_name]
+        return server.name + "|" + str(server.port) + "@" + response
 
     def return_address_and_message(self, string_request):
         address_with_message = string_request.split("@")
-        return address_with_message[0], "@".join(address_with_message[1:])
+        name, port = address_with_message[0].split("|")
+        return name, port, "@".join(address_with_message[1:])
 
     def respond(self, key_value_store, operation):
         send_pending = True
         string_request = operation.decode("utf-8")
-        server_name, string_operation = self.return_address_and_message(string_request)
+        server_name, server_port, string_operation = self.return_address_and_message(string_request)
         print("from " + server_name + ": received " + string_operation)
 
         response = ''
@@ -328,4 +321,4 @@ class Server:
         if send_pending:
             response = self.with_return_address(self, response)
 
-        return server_name, response
+        return server_name, server_port, response

@@ -11,7 +11,7 @@ def send_message(sock, msg):
 # send_message(sock, b'Hello World')   ->>>  b"<size>Hello World"
 
 def receive_message(sock):
-    size = receive_size(sock)           # get the message size
+    size = receive_size(sock)   # get the message size
     try:
         msg = receive_exactly(sock, size)   # Receive exactly this many bytes
     except IOError as e:
