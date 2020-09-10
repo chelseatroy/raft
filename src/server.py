@@ -36,7 +36,8 @@ class Server:
         for server_name in self.key_value_store.other_server_names(name):
             self.followers_with_update_status[server_name] = False
 
-        self.key_value_store.voted_for_me[self.name] = False
+        if self.voting:
+            self.key_value_store.voted_for_me[self.name] = False
 
 
     def start_election(self):
@@ -143,9 +144,8 @@ class Server:
 
             self.prove_aliveness()
 
-            for server_name in self.key_value_store.other_server_names(self.name):
+            for server_name in self.key_value_store.voted_for_me.keys():
                 self.key_value_store.voted_for_me[server_name] = False
-            self.key_value_store.voted_for_me[self.name] = False
 
         # Thinks it's not used but actually it is in a thread above
     def manage_messaging(self, connection, kvs):
@@ -217,17 +217,23 @@ class Server:
                     [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
                     print("State machine after appending: " + str(key_value_store.data))
 
-                    self.voting = True
-                    print("I GET TO VOTE NOW AAAAAHAHAHAHAHA")
-                    self.broadcast(self, self.with_return_address(
-                        self,
-                        "I can vote now!"
-                    ))
+                    if self.voting == False:
+                        self.broadcast(self, self.with_return_address(
+                            self,
+                            "I can vote now!"
+                        ))
+                        self.voting = True
                     response = "Append entries call successful!"
                 else:
                     response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
         elif string_operation == "I can vote now!":
-            key_value_store.write_to_log(f"register {server_name} voting", term_absent=False)
+            if self.leader:
+                if self.key_value_store.voted_for_me.get(server_name, "Not already voting") == "Not already voting":
+                    key_value_store.write_to_log(f"register {server_name} voting", term_absent=True)
+                else:
+                    send_pending = False
+            else:
+                send_pending = False
         elif string_operation.split(" ")[0] == "append_entries_unsuccessful.":
 
             response_components = string_operation.split(" ")
