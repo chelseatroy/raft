@@ -3,7 +3,7 @@ import os
 
 from src.log_data_access_object import LogDataAccessObject
 
-class KeyValueStore:
+class LogManager:
     client_lock = threading.Lock()
 
     def __init__(self, server_name):

@@ -1,21 +1,21 @@
 import pytest
-from src.key_value_store import KeyValueStore
+from src.log_manager import LogManager
 
 TEST_LOG_PATH = "tests/test_kvs_logs.txt"
 
 class TestKeyValueStore():
     def test_get(self):
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.data = {"Sibyl": "cruelty"}
         assert kvs.get("Sibyl") == "cruelty"
 
     def test_set(self):
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.set("Sibyl", "cruelty")
         assert kvs.get("Sibyl") == "cruelty"
 
     def test_delete(self):
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.data = {"Sibyl": "cruelty"}
         kvs.delete("Sibyl")
         assert kvs.get("Sibyl") == ""
@@ -23,7 +23,7 @@ class TestKeyValueStore():
     def test_write_to_log(self):
         self.clean_up_file(TEST_LOG_PATH)
 
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.write_to_log("set Sibyl cruelty", TEST_LOG_PATH)
         self.assert_on_file(path=TEST_LOG_PATH, length=1, lines="0 set Sibyl cruelty")
 
@@ -34,7 +34,7 @@ class TestKeyValueStore():
     def test_catch_up(self):
         self.clean_up_file(TEST_LOG_PATH)
 
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.write_to_log("0 set Sibyl cruelty", TEST_LOG_PATH)
         kvs.write_to_log("0 set Basil wrath", TEST_LOG_PATH)
         kvs.data = {} #Ensure that in-memory data is empty
@@ -45,12 +45,12 @@ class TestKeyValueStore():
 
 
     def test_get_latest_term_before_catchup(self):
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         null_latest_term = kvs.get_latest_term()
         assert not null_latest_term
 
     def test_get_latest_term_after_catchup(self):
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
 
         kvs.catch_up(path_to_logs=TEST_LOG_PATH)
         latest_term = kvs.get_latest_term()
@@ -66,7 +66,7 @@ class TestKeyValueStore():
 
     def test_execute_from_client(self):
         self.clean_up_file(TEST_LOG_PATH)
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
 
         kvs.write_to_state_machine("set Sibyl cruelty", term_absent=True, path_to_logs=TEST_LOG_PATH)
 
@@ -75,7 +75,7 @@ class TestKeyValueStore():
 
     def test_execute_from_logs_upon_restart(self):
         self.clean_up_file(TEST_LOG_PATH)
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         kvs.write_to_log(string_operation="0 set Sibyl cruelty", path_to_logs=TEST_LOG_PATH)
         assert not kvs.get("Sibyl")
 
@@ -86,7 +86,7 @@ class TestKeyValueStore():
 
     def test_execute_from_leader_catchup_command(self):
         self.clean_up_file(TEST_LOG_PATH)
-        kvs = KeyValueStore(server_name="DorianGray")
+        kvs = LogManager(server_name="DorianGray")
         assert not kvs.get("Sibyl")
 
         kvs.write_to_state_machine("0 set Sibyl cruelty", term_absent=False, path_to_logs=TEST_LOG_PATH)

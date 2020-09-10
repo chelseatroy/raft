@@ -5,7 +5,7 @@ import random
 
 from src.message_pass import *
 
-from src.key_value_store import KeyValueStore
+from src.log_manager import LogManager
 from src.append_entries_call import AppendEntriesCall
 from src.request_vote_call import RequestVoteCall
 
@@ -16,8 +16,8 @@ class Server:
     def __init__(self, name, port=10000, voting=True):
         self.port = port
         self.name = name
-        self.key_value_store = KeyValueStore(server_name=name)
-        self.key_value_store.catch_up()
+        self.log_manager = LogManager(server_name=name)
+        self.log_manager.catch_up()
         self.latest_leader = "yet unelected"
 
         self.leader = False
@@ -37,30 +37,30 @@ class Server:
         self.allow_election_countdown = threading.Timer(float(10), self.allow_election)
         self.allow_election_countdown.start()
 
-        for server_name in self.key_value_store.other_server_names(name):
+        for server_name in self.log_manager.other_server_names(name):
             self.followers_with_update_status[server_name] = False
 
         if self.voting:
-            self.key_value_store.voted_for_me[self.name] = False
+            self.log_manager.voted_for_me[self.name] = False
 
     def allow_election(self):
         self.election_allowed = True
 
     def start_election(self):
         if not self.leader:
-            self.key_value_store.current_term += 1
+            self.log_manager.current_term += 1
             self.timeout = float(random.randint(10, 18))
             self.election_countdown = threading.Timer(self.timeout, self.start_election)
             print("Server reset election timeout to : " + str(self.timeout))
             self.election_countdown.start()
 
-            self.key_value_store.voted_for_me[self.name] = True
+            self.log_manager.voted_for_me[self.name] = True
             self.broadcast(self, self.with_return_address(
                 self,
                 RequestVoteCall(
-                    for_term=str(self.key_value_store.current_term),
-                    latest_log_index=str(self.key_value_store.highest_index),
-                    latest_log_term=str(self.key_value_store.latest_term_in_logs)
+                    for_term=str(self.log_manager.current_term),
+                    latest_log_index=str(self.log_manager.highest_index),
+                    latest_log_term=str(self.log_manager.latest_term_in_logs)
                 ).to_message()
             ))
 
@@ -106,7 +106,7 @@ class Server:
             connection, client_address = self.server_socket.accept()
             print("connection from " + str(client_address))
 
-            threading.Thread(target=self.manage_messaging, args=(connection, self.key_value_store)).start()
+            threading.Thread(target=self.manage_messaging, args=(connection, self.log_manager)).start()
 
     def prove_aliveness(self):
         print("Sending Heartbeat!")
@@ -114,9 +114,9 @@ class Server:
             self.broadcast(self, self.with_return_address(
                 self,
                 AppendEntriesCall(
-                    in_term=self.key_value_store.current_term,
-                    previous_index=self.key_value_store.highest_index,
-                    previous_term=self.key_value_store.latest_term_in_logs,
+                    in_term=self.log_manager.current_term,
+                    previous_index=self.log_manager.highest_index,
+                    previous_term=self.log_manager.latest_term_in_logs,
                     entries=[]
                 ).to_message()
             ))
@@ -131,27 +131,27 @@ class Server:
         if trues >= falses:
             print("Committing entry: " + self.current_operation)
             self.current_operation_committed = True
-            self.key_value_store.write_to_state_machine(self.current_operation, term_absent=True)
+            self.log_manager.write_to_state_machine(self.current_operation, term_absent=True)
             self.broadcast(self, self.with_return_address(self, "commit_entries ['" + self.current_operation + "']"))
 
             self.current_operation_committed = False
-            for server_name in self.key_value_store.other_server_names(self.name):
+            for server_name in self.log_manager.other_server_names(self.name):
                 self.followers_with_update_status[server_name] = False
 
     def mark_voted(self, server_name):
-        self.key_value_store.voted_for_me[server_name] = True
+        self.log_manager.voted_for_me[server_name] = True
 
-        trues = len(list(filter(lambda x: x is True, self.key_value_store.voted_for_me.values())))
-        falses = len(list(filter(lambda x: x is False, self.key_value_store.voted_for_me.values())))
+        trues = len(list(filter(lambda x: x is True, self.log_manager.voted_for_me.values())))
+        falses = len(list(filter(lambda x: x is False, self.log_manager.voted_for_me.values())))
         if trues >= falses:
-            print("I win the election for term " + str(self.key_value_store.current_term) + "!")
-            self.key_value_store.catch_up(new_leader=True)
+            print("I win the election for term " + str(self.log_manager.current_term) + "!")
+            self.log_manager.catch_up(new_leader=True)
             self.leader = True
 
             self.prove_aliveness()
 
-            for server_name in self.key_value_store.voted_for_me.keys():
-                self.key_value_store.voted_for_me[server_name] = False
+            for server_name in self.log_manager.voted_for_me.keys():
+                self.log_manager.voted_for_me[server_name] = False
 
         # Thinks it's not used but actually it is in a thread above
     def manage_messaging(self, connection, kvs):
@@ -179,7 +179,7 @@ class Server:
 
     def broadcast(self, server, message):
         print("Broadcasting " + message)
-        for other_server_address in self.key_value_store.destination_addresses(server.name):
+        for other_server_address in self.log_manager.destination_addresses(server.name):
             server.send(message, to_port=other_server_address)
 
     def with_return_address(self, server, response):
@@ -190,7 +190,7 @@ class Server:
         name, port = address_with_message[0].split("|")
         return name, port, "@".join(address_with_message[1:])
 
-    def respond(self, key_value_store, operation):
+    def respond(self, log_manager, operation):
         send_pending = True
         string_request = operation.decode("utf-8")
         server_name, server_port, string_operation = self.return_address_and_message(string_request)
@@ -201,7 +201,7 @@ class Server:
         if string_operation.split(" ")[0] == "append_entries":
             call = AppendEntriesCall.from_message(string_operation)
 
-            if call.in_term < self.key_value_store.current_term:
+            if call.in_term < self.log_manager.current_term:
                 response = "Your term is out of date. You can't be the leader."
             else:
                 self.latest_leader = server_name
@@ -218,15 +218,15 @@ class Server:
                 self.leader = False
                 if self.heartbeat_timer:
                     self.heartbeat_timer.cancel()
-                self.key_value_store.current_term = call.in_term
+                self.log_manager.current_term = call.in_term
 
-                if self.key_value_store.command_at(
+                if self.log_manager.command_at(
                     call.previous_index,
                     call.previous_term
                 ) != None:
-                    key_value_store.remove_logs_after_index(call.previous_index)
-                    [key_value_store.write_to_log(log, term_absent=False) for log in call.entries]
-                    print("State machine after appending: " + str(key_value_store.data))
+                    log_manager.remove_logs_after_index(call.previous_index)
+                    [log_manager.write_to_log(log, term_absent=False) for log in call.entries]
+                    print("State machine after appending: " + str(log_manager.data))
 
                     if self.voting == False:
                         self.broadcast(self, self.with_return_address(
@@ -239,8 +239,8 @@ class Server:
                     response = "append_entries_unsuccessful. Please send log prior to: " + str(call.previous_index) + " " + str(call.previous_term)
         elif string_operation == "I can vote now!":
             if self.leader:
-                if self.key_value_store.voted_for_me.get(server_name, "Not already voting") == "Not already voting":
-                    key_value_store.write_to_log(f"register {server_name} voting", term_absent=True)
+                if self.log_manager.voted_for_me.get(server_name, "Not already voting") == "Not already voting":
+                    log_manager.write_to_log(f"register {server_name} voting", term_absent=True)
                 else:
                     send_pending = False
             else:
@@ -253,12 +253,12 @@ class Server:
             latest_tried_index = int(response_components[max_index - 2])
             latest_tried_term = int(response_components[max_index - 1])
 
-            log_position = self.key_value_store.log_access_object().ordered_logs.index(
+            log_position = self.log_manager.log_access_object().ordered_logs.index(
                 str(latest_tried_index) + " " + str(latest_tried_term)
             )
 
-            ordered_logs = self.key_value_store.log_access_object().ordered_logs
-            term_indexed_logs = self.key_value_store.log_access_object().term_indexed_logs
+            ordered_logs = self.log_manager.log_access_object().ordered_logs
+            term_indexed_logs = self.log_manager.log_access_object().term_indexed_logs
             new_key_to_try = ordered_logs[log_position - 1]
 
             new_values_to_send = list(
@@ -272,7 +272,7 @@ class Server:
             try_this_term = new_key_to_try.split(" ")[1]
 
             response = AppendEntriesCall(
-                in_term=self.key_value_store.current_term,
+                in_term=self.log_manager.current_term,
                 previous_index=try_this_index,
                 previous_term=try_this_term,
                 entries=new_values_to_send
@@ -283,16 +283,16 @@ class Server:
             stringified_logs_to_append = string_operation.replace("commit_entries ", "")
             print("Preparing to commit: " + stringified_logs_to_append)
             logs_to_append = ast.literal_eval(stringified_logs_to_append)
-            [key_value_store.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
+            [log_manager.write_to_state_machine(command, term_absent=True) for command in logs_to_append]
 
             response = "Commit entries call successful!"
-            print("State machine after committing: " + str(key_value_store.data))
+            print("State machine after committing: " + str(log_manager.data))
         elif string_operation.split(" ")[0] == "can_I_count_on_your_vote_in_term":
             if self.allow_election:
                 request_vote_call = RequestVoteCall.from_message(string_operation)
-                if request_vote_call.for_term > self.key_value_store.current_term \
-                    and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
-                    and request_vote_call.latest_log_index >= self.key_value_store.highest_index \
+                if request_vote_call.for_term > self.log_manager.current_term \
+                    and request_vote_call.latest_log_term >= self.log_manager.latest_term_in_logs \
+                    and request_vote_call.latest_log_index >= self.log_manager.highest_index \
                     and self.voting:
                         response = "You can count on my vote!"
                 else:
@@ -301,7 +301,7 @@ class Server:
                 response = "I heard from a leader recently, so I'm not voting for you."
         elif string_operation == "You can count on my vote!":
             self.mark_voted(server_name)
-            self.key_value_store.current_term += 1
+            self.log_manager.current_term += 1
             send_pending = False
         elif string_operation == "Append entries call successful!":
             if self.leader:
@@ -323,14 +323,14 @@ class Server:
                 self.current_operation = string_operation
 
                 if self.current_operation.split(" ")[0] in ["set", "delete", "register", "deregister"]:
-                    string_operation_with_term = key_value_store.write_to_log(string_operation, term_absent=True)
+                    string_operation_with_term = log_manager.write_to_log(string_operation, term_absent=True)
 
                     self.broadcast(self, with_return_address(
                         self,
                         AppendEntriesCall(
-                            in_term=self.key_value_store.current_term,
-                            previous_index=self.key_value_store.highest_index - 1, #because we incremented it to update our own logs
-                            previous_term=self.key_value_store.latest_term_in_logs,
+                            in_term=self.log_manager.current_term,
+                            previous_index=self.log_manager.highest_index - 1, #because we incremented it to update our own logs
+                            previous_term=self.log_manager.latest_term_in_logs,
                             entries=[string_operation_with_term]
                         ).to_message()
                     ))
@@ -340,7 +340,7 @@ class Server:
 
                     response = "Aye aye, cap'n!"
                 else:
-                    response = key_value_store.read(self.current_operation)
+                    response = log_manager.read(self.current_operation)
             else:
                 response = "I am not the leader. The last leader I heard from is " + str(self.latest_leader) + "."
 
