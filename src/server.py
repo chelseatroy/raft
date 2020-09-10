@@ -33,12 +33,18 @@ class Server:
         print("Server started with timeout of : " + str(self.timeout))
         self.election_countdown.start()
 
+        self.election_allowed = True
+        self.allow_election_countdown = threading.Timer(float(10), self.allow_election)
+        self.allow_election_countdown.start()
+
         for server_name in self.key_value_store.other_server_names(name):
             self.followers_with_update_status[server_name] = False
 
         if self.voting:
             self.key_value_store.voted_for_me[self.name] = False
 
+    def allow_election(self):
+        self.election_allowed = True
 
     def start_election(self):
         if not self.leader:
@@ -200,6 +206,11 @@ class Server:
             else:
                 self.latest_leader = server_name
 
+                self.election_allowed = False
+                self.allow_election_countdown.cancel()
+                self.allow_election_countdown = threading.Timer(float(10), self.allow_election)
+                self.allow_election_countdown.start()
+
                 self.election_countdown.cancel()
                 self.election_countdown = threading.Timer(self.timeout, self.start_election)
                 self.election_countdown.start()
@@ -277,14 +288,17 @@ class Server:
             response = "Commit entries call successful!"
             print("State machine after committing: " + str(key_value_store.data))
         elif string_operation.split(" ")[0] == "can_I_count_on_your_vote_in_term":
-            request_vote_call = RequestVoteCall.from_message(string_operation)
-            if request_vote_call.for_term > self.key_value_store.current_term \
-                and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
-                and request_vote_call.latest_log_index >= self.key_value_store.highest_index \
-                and self.voting:
-                    response = "You can count on my vote!"
+            if self.allow_election:
+                request_vote_call = RequestVoteCall.from_message(string_operation)
+                if request_vote_call.for_term > self.key_value_store.current_term \
+                    and request_vote_call.latest_log_term >= self.key_value_store.latest_term_in_logs \
+                    and request_vote_call.latest_log_index >= self.key_value_store.highest_index \
+                    and self.voting:
+                        response = "You can count on my vote!"
+                else:
+                    response = "Your log is out of date. I'm not voting for you!"
             else:
-                response = "Your log is out of date. I'm not voting for you!"
+                response = "I heard from a leader recently, so I'm not voting for you."
         elif string_operation == "You can count on my vote!":
             self.mark_voted(server_name)
             self.key_value_store.current_term += 1
@@ -300,7 +314,8 @@ class Server:
             "Commit entries call successful!",
             "Sorry, already voted.",
             "Your term is out of date. You can't be the leader.",
-            "Your log is out of date. I'm not voting for you!"
+            "Your log is out of date. I'm not voting for you!",
+            "I heard from a leader recently, so I'm not voting for you."
         ] or string_operation.startswith("I am not the leader"):
             send_pending = False
         else:

@@ -225,7 +225,7 @@ class KeyValueStore:
 
         elif operands[command] == "deregister":
             self.server_cluster.pop(operands[key])
-            self.voted_for_me.pop(operands[key], "Not yet voting") #Skips KeyError in case a non-voting server is being removed
+            self.voted_for_me.pop(operands[key], "Not currently voting") #Skips KeyError in case a non-voting server is being removed
 
     def destination_addresses(self, server_name):
         other_servers = {k: v for (k, v) in self.server_cluster.items() if k != server_name}
