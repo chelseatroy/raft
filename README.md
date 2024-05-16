@@ -1,6 +1,13 @@
 # To Run this Repo
 
-1. In raft/logs, make a file called tom_log.txt, jerry_log.txt, and spike_log.txt. In each of those files, paste the following and nothing else: 
+0. Clone the repo and cd into it:
+
+```
+git clone <url from the UI> 
+cd raft
+```
+
+2. In `/logs`, make a file called tom_log.txt, jerry_log.txt, and spike_log.txt. In each of those files, paste the following and nothing else: 
 
 ```
 0 0 set unreachable 
